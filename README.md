@@ -18,25 +18,13 @@ FILES=$(curl -fsSL https://api.github.com/repos/wang-q/builds/git/trees/master?r
         sed 's|^tar/||')
 cd $HOME/bin/
 
-echo "开始下载文件..."
 for file in $FILES; do
     echo "下载: $file"
     
-    # 使用你指定的URL格式
     curl -fsSL --retry 5 --retry-delay 2 \
         "https://github.com/wang-q/builds/raw/master/tar/$file" \
         -o "$file"
-    
-    if [ $? -ne 0 ]; then
-        echo "错误: 下载失败 $file"
-        continue
-    fi
-    
-    # 验证文件大小（避免下载空文件）
-    file_size=$(stat -c %s "$file")
-    if [ "$file_size" -lt 1024 ]; then
-        echo "警告: 文件过小 ($file_size 字节)，可能下载不完整: $file"
-    fi
+
 done
 
 for file in *.linux.tar.gz; do
@@ -296,7 +284,7 @@ anchr anchors \
 bash anchors.sh
 popd
 ```
-组装重叠序列
+
 unitigs -superreads
 ```
 gzip -dcf trim/pe.cor.fa.gz > trim/pe.cor.fa
@@ -413,7 +401,27 @@ example
 anchr dazzname 1_4.anchor.fasta -o stdout
 anchr show2ovlp 1_4.show.txt 1_4.replace.tsv --orig
 anchr paf2ovlp 1_4.pac.paf
+```
+* covered
+```
+Usage: anchr covered [OPTIONS] <infiles>...
 
+Arguments:
+  <infiles>...  Set the input files to use
+
+Options:
+  -c, --coverage <coverage>  minimal coverage [default: 3]
+  -l, --len <len>            minimal length of overlaps [default: 1000]
+  -i, --idt <idt>            minimal identities of overlaps [default: 0.0]
+      --paf                  PAF as input format
+      --longest              only keep the longest span
+      --base                 per base coverage
+      --mean                 mean coverage
+  -o, --outfile <outfile>    Output filename. [stdout] for screen [default: stdout]
+  -h, --help                 Print help
+  -V, --version              Print version
+```
+```
 echo "1_4.anchor.fasta;1_4.pac.fasta" |
     parallel --colsep ";" -j 1 "
         minimap2 -cx asm20 {1} {2} |
@@ -424,3 +432,108 @@ echo "1_4.anchor.fasta;1_4.pac.fasta" |
             tsv-sort
     " |
     anchr covered stdin --mean
+
+anchr covered 1_4.pac.paf.ovlp.tsv
+anchr covered 11_2.long.paf --paf
+anchr covered 1_4.pac.paf.ovlp.tsv --base
+anchr covered 1_4.pac.paf.ovlp.tsv --mean
+```
+组装
+```
+anchr restrict 1_4.ovlp.tsv 1_4.restrict.tsv
+```
+### Overlap-dalinger
+* overlap
+```
+Usage: anchr overlap [OPTIONS] <infiles>...
+
+Arguments:
+  <infiles>...  Set the input files to use
+
+Options:
+  -l, --len <len>            minimal length of overlaps [default: 500]
+  -i, --idt <idt>            minimal identities of overlaps [default: 0.7]
+      --serial               Serials instead of original names in outputs  #在输出中使用序列号代替原始序列名称
+      --all                  All overlaps instead of proper ones #输出所有重叠，而非仅保留 “适当重叠”
+  -p, --parallel <parallel>  Number of threads [default: 8]
+  -o, --outfile <outfile>    Output filename. [stdout] for screen [default: stdout]
+  -h, --help                 Print help
+  -V, --version              Print version
+
+
+* This command is for small files.
+* All operations are running in a tempdir and no intermediate files are kept.
+```
+```
+anchr overlap 1_4.pac.fasta
+anchr overlap 1_4.pac.fasta --idt 0.8 --len 2500 --serial
+```
+* orient
+```
+Usage: anchr orient [OPTIONS] <infiles>...
+
+Arguments:
+  <infiles>...  Set the input files to use
+
+Options:
+  -l, --len <len>            minimal length of overlaps [default: 1000]
+  -i, --idt <idt>            minimal identities of overlaps [default: 0.85]
+  -r, --restrict <restrict>  Restrict to known pairs
+  -p, --parallel <parallel>  Number of threads [default: 8]
+  -o, --outfile <outfile>    Output filename. [stdout] for screen [default: stdout]
+  -h, --help                 Print help
+  -V, --version              Print version
+
+
+* This command is for small files.
+* All operations are running in a tempdir and no intermediate files are kept.
+```
+```
+anchr orient 1_4.anchor.fasta 1_4.pac.fasta
+anchr orient 1_4.anchor.fasta 1_4.pac.fasta -r 1_4.2.restrict.tsv
+```
+* contained
+```
+anchr contained contained.fasta
+```
+* merge
+```
+anchr merge merge.fasta -o test.fasta
+```
+* overlap2 #必须是两个FASTA 文件
+```
+Usage: anchr overlap2 [OPTIONS] <infile> <infile2>
+
+Arguments:
+  <infile>   Sets the first input file
+  <infile2>  Sets the second input file
+
+Options:
+  -d, --dir <dir>            Change working directory [default: .]
+      --p1 <p1>              Prefix of the first [default: anchor]
+      --p2 <p2>              Prefix of the second [default: long]
+      --pd <pd>              Prefix of the result files
+  -b, --block <block>        Block size in Mbp [default: 20]
+  -l, --len <len>            minimal length of overlaps [default: 500]
+  -i, --idt <idt>            minimal identities of overlaps [default: 0.7]
+      --all                  All overlaps instead of proper ones
+  -p, --parallel <parallel>  Number of threads [default: 8]
+  -h, --help                 Print help
+  -V, --version              Print version
+
+
+* Since `daligner` cannot perform overlap comparisons between two databases,
+  the current strategy is to place the two FASTA files into a single database
+  and then split that database into multiple chunks. The chunk containing the
+  first sequence will be compared against the other chunks. This approach can
+  still significantly reduce the computational workload.
+
+* The inputs can't be stdin
+* All intermediate files (.fasta, .replace.tsv, .db, .las, .show.txt, .ovlp.tsv)
+  are kept in the working directory.
+
+* .ovlp.tsv records the serials
+```
+```
+anchr overlap2 1_4.anchor.fasta 1_4.pac.fasta -d tmp
+```
