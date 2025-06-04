@@ -9,6 +9,25 @@ cargo install --git https://github.com/wang-q/anchr --branch main
 ```
 ## runtime dependencies
 ```
+#cbp
+curl -LO https://github.com/wang-q/cbp/releases/latest/download/cbp.linux
+chmod +x cbp.linux
+./cbp.linux init
+source ~/.bashrc
+
+cbp install openjdk jq parallel pigz
+cbp install fastqc sickle bwa samtools picard
+cbp install spoa
+cbp install bcalm bifrost
+cbp install tsv-utils faops intspan
+cbp install dazzdb daligner
+
+# linux
+cbp install mosdepth
+
+brew tap brewsci/bio
+brew tap wang-q/tap
+
 brew install perl cpanminus
 brew install r
 brew install parallel pigz jq
@@ -35,7 +54,7 @@ done
 curl -LO https://github.com/brentp/mosdepth/releases/download/v0.3.10/mosdepth
 chmod +x mosdepth
 
-brew tap wang-q/tap
+
 brew install wang-q/tap/tsv-utils
 
 anchr dep install | bash
