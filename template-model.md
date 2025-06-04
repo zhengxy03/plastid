@@ -101,6 +101,7 @@ cd g37/1_genome
 curl -O "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/040/556/925/GCF_040556925.1_ASM4055692v1/GCF_040556925.1_ASM4055692v1_genomic.fna.gz"
 gzip -d GCF_040556925.1_ASM4055692v1_genomic.fna.gz
 mv GCF_040556925.1_ASM4055692v1_genomic.fna genome.fa
+sed -i '1s/.*/>1/' 1_genome/genome.fa
 ```
 `g37: download`
 
