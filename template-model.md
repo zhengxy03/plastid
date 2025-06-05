@@ -101,7 +101,7 @@ cd g37/1_genome
 curl -O "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/040/556/925/GCF_040556925.1_ASM4055692v1/GCF_040556925.1_ASM4055692v1_genomic.fna.gz"
 gzip -d GCF_040556925.1_ASM4055692v1_genomic.fna.gz
 mv GCF_040556925.1_ASM4055692v1_genomic.fna genome.fa
-sed -i '1s/.*/>1/' 1_genome/genome.fa
+sed -i '1s/.*/>1/' genome.fa
 ```
 `g37: download`
 
@@ -159,7 +159,7 @@ cd mg1655/1_genome
 curl -O "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz"
 gzip -d GCF_000005845.2_ASM584v2_genomic.fna.gz
 mv GCF_000005845.2_ASM584v2_genomic.fna genome.fa
-sed -i '1s/.*/>1/' 1_genome/genome.fa
+sed -i '1s/.*/>1/' genome.fa
 ```
 `mg1655: download`
 ```

@@ -15,10 +15,10 @@ fi
 GREEN=
 RED=
 NC=
-if tty -s < /dev/fd/1 2> /dev/null; then
+if tty -s < /dev/fd/1 2> /dev/null; then #检查标准输出（STDOUT）是否连接到终端（TTY 设备）
     GREEN='\033[0;32m'
     RED='\033[0;31m'
-    NC='\033[0m' # No Color
+    NC='\033[0m' # No Color 重置
 fi
 
 log_warn () {
@@ -36,7 +36,7 @@ log_debug () {
 #----------------------------#
 # helper functions
 #----------------------------#
-set +e
+set +e  #禁用严格模式，脚本会继续执行后续命令，即使前面的命令失败。
 
 # set stacksize to unlimited
 if [[ "$OSTYPE" != "darwin"* ]]; then
@@ -47,11 +47,11 @@ signaled () {
     log_warn Interrupted
     exit 1
 }
-trap signaled TERM QUIT INT
+trap signaled TERM QUIT INT #捕获并处理系统信号
 
 # save environment variables
 save () {
-    printf ". + { %s: \"%s\"}" $1 $(eval "echo -n \"\$$1\"") > jq.filter.txt
+    printf ". + { %s: \"%s\"}" $1 $(eval "echo -n \"\$$1\"") > jq.filter.txt  #json过滤器文件
 
     if [ -e env.json ]; then
         cat env.json |
@@ -93,7 +93,7 @@ time_format () {
 }
 
 readlinkf () {
-    perl -MCwd -l -e 'print Cwd::abs_path shift' "$1";
+    perl -MCwd -l -e 'print Cwd::abs_path shift' "$1";  #shift获取并移除 @ARGV 的第一个元素
 }
 
 #----------------------------#

@@ -104,13 +104,13 @@ log_warn 1_repetitive.sh
 mkdir -p 1_genome/repetitive
 cd 1_genome/repetitive
 
-if [ ! -s repetitive.fa ]; then
+if [ ! -s repetitive.fa ]; then #-s是否存在且非空
     hnsm size ../genome.fa > chr.sizes
 
-    FastK -v -p -k21 ../genome
+    FastK -v -p -k21 ../genome  # k-mer 计数的工具
 
     cat chr.sizes |
-        number-lines |
+        number-lines |   #为chr.sizes的每行添加行号
         parallel --col-sep "\t" --no-run-if-empty --linebuffer -k -j 4 '
             Profex ../genome {1} |
                 sed "1,2 d" |
@@ -125,8 +125,10 @@ if [ ! -s repetitive.fa ]; then
         ' |
         spanr combine stdin \
         > repetitive.json
+#Profex：分析 k-mer 频率的工具
+#spanr：基因组区间（interval）处理工具
 
-    Fastrm ../genome
+    Fastrm ../genome  #Fastrm：基于 k-mer 分析结果，从基因组中移除或标记重复序列
 
     spanr convert repetitive.json > region.txt
     hnsm range ../genome.fa -r region.txt |
