@@ -149,3 +149,77 @@ bash 0_script/1_repetitive.sh
 
 bash 0_script/0_master.sh
 ```
+
+## *Escherichia coli* str. K-12 substr. MG1655
+`mg1655: reference`
+```
+mkdir -p mg1655/1_genome
+cd mg1655/1_genome
+
+curl -O "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz"
+gzip -d GCF_000005845.2_ASM584v2_genomic.fna.gz
+mv GCF_000005845.2_ASM584v2_genomic.fna genome.fa
+sed -i '1s/.*/>1/' 1_genome/genome.fa
+```
+`mg1655: download`
+```
+aria2c -x 9 -s 3 -c ftp://webdata:webdata@ussd-ftp.illumina.com/Data/SequencingRuns/MG1655/MiSeq_Ecoli_MG1655_110721_PF_R1.fastq.gz
+aria2c -x 9 -s 3 -c ftp://webdata:webdata@ussd-ftp.illumina.com/Data/SequencingRuns/MG1655/MiSeq_Ecoli_MG1655_110721_PF_R2.fastq.gz
+```
+* illumina
+```
+mkdir -p 2_illumina
+cd 2_illumina
+
+ln -s ../MiSeq_Ecoli_MG1655_110721_PF_R1.fastq.gz R1.fq.gz
+ln -s ../MiSeq_Ecoli_MG1655_110721_PF_R2.fastq.gz R2.fq.gz
+```
+`mg1655: template`
+* rsync to hpcc
+```
+rsync -avP \
+    ~/project/anchr/mg1655/ \
+    wangq@202.119.37.251:zxy/mg1655
+```
+* template
+```
+anchr template \
+    --genome 4641652 \
+    --parallel 24 \
+    --xmx 80g \
+    --queue mpi \
+    \
+    --repetitive \
+    \
+    --fastqc \
+    --insertsize \
+    --fastk \
+    \
+    --trim "--dedupe --tile --cutoff 30 --cutk 31" \
+    --qual "25 30" \
+    --len "60" \
+    --filter "adapter artifact" \
+    \
+    --quorum \
+    --merge \
+    --ecphase "1 2 3" \
+    \
+    --bwa "Q25L60" \
+    --gatk \
+    \
+    --cov "40 80" \
+    --unitigger "bcalm bifrost superreads" \
+    --statp 2 \
+    --readl 151 \
+    --uscale 2 \
+    --lscale 3 \
+    \
+    --extend \
+    \
+    --busco
+```
+`mg1655: run`
+```
+bash 0_script/1_repetitive.sh
+bash 0_script/0_master.sh
+```
