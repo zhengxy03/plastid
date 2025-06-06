@@ -113,7 +113,7 @@ for PREFIX in R S T; do
         continue;
     fi
 
-    tadpole.sh \
+    tadpole.sh \ #BBTools 中的序列组装工具
         in=../${PREFIX}1.fq.gz \
         in2=../${PREFIX}2.fq.gz \
         out=${PREFIX}.tadpole.contig.fasta \
@@ -124,28 +124,28 @@ for PREFIX in R S T; do
         anchr dazzname --no-replace --prefix T stdin \
         > ${PREFIX}.tadpole.contig.fa
 
-    bbmap.sh \
+    bbmap.sh \ #BBTools 中的短序列比对工具
         in=../${PREFIX}1.fq.gz \
         in2=../${PREFIX}2.fq.gz \
         out=${PREFIX}.tadpole.sam.gz \
         ref=${PREFIX}.tadpole.contig.fa \
         threads=8 \
-        pairedonly \
-        reads=1000000 \
+        pairedonly \ #仅保留双端都比对上的 reads
+        reads=1000000 \ #随机抽取1000000条reads
         nodisk overwrite
 
-    reformat.sh \
+    reformat.sh \ #BBTools 中的格式转换工具
         in=${PREFIX}.tadpole.sam.gz \
-        ihist=${PREFIX}.ihist.tadpole.txt \
+        ihist=${PREFIX}.ihist.tadpole.txt \  #生成插入片段长度直方图
         overwrite
 
-    picard SortSam \
+    picard SortSam \  #SortSam：按染色体坐标排序 SAM/BAM 文件
         -I ${PREFIX}.tadpole.sam.gz \
         -O ${PREFIX}.tadpole.sort.bam \
         --SORT_ORDER coordinate \
         --VALIDATION_STRINGENCY LENIENT
 
-    picard CollectInsertSizeMetrics \
+    picard CollectInsertSizeMetrics \  #计算插入片段的统计信息（均值、标准差等）
         -I ${PREFIX}.tadpole.sort.bam \
         -O ${PREFIX}.insert_size.tadpole.txt \
         --Histogram_FILE ${PREFIX}.insert_size.tadpole.pdf

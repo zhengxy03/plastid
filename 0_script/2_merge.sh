@@ -125,8 +125,8 @@ for PREFIX in R S T; do
     fi
 
     # rotate ascii characters https://en.wikipedia.org/wiki/ROT13
-    PREFIXM=$(echo ${PREFIX} | tr 'A-Z' 'V-ZA-U')   # M N O
-    PREFIXU=$(echo ${PREFIX} | tr 'A-Z' 'D-ZA-C')   # U V W
+    PREFIXM=$(echo ${PREFIX} | tr 'A-Z' 'V-ZA-U')   # M N O #右移五位
+    PREFIXU=$(echo ${PREFIX} | tr 'A-Z' 'D-ZA-C')   # U V W #右移三位
 
     if [ -e ${PREFIX}1.fq.gz ]; then
         log_debug "2_illumina/merge/${PREFIXM}1.fq.gz presents"
@@ -149,12 +149,10 @@ for PREFIX in R S T; do
         ${PREFIXU}2.fq.gz \
         > ${PREFIXM}.interleave.fa
 
-# 追加单端未配对序列（SE）
     faops interleave -p "single" \
         ${PREFIXU}s.fq.gz \
         >> ${PREFIXM}.interleave.fa
 
-# 追加合并后的双端序列（Merged PE）
     faops interleave -p "merged" \
         ${PREFIXM}1.fq.gz \
         >> ${PREFIXM}.interleave.fa
