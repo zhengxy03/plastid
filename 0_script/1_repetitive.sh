@@ -136,12 +136,12 @@ if [ ! -s repetitive.fa ]; then #-s是否存在且非空
         > repetitive.fa
 
     spanr stat chr.sizes repetitive.json |
-        tr ',' '\t' \
+        tr ',' '\t' \  #替换
         > statRepetitive.tsv
 fi
 
 cat statRepetitive.tsv |
-    rgr md stdin --num \
+    rgr md stdin --num \  #文本转换
     > statRepetitive.md
 
 echo -e "\nTable: statRepetitive\n" >> statRepetitive.md

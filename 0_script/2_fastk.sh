@@ -109,7 +109,7 @@ for PREFIX in R S T; do
         continue;
     fi
 
-    if [ -d ${PREFIX}-GeneScope-21 ]; then
+    if [ -d ${PREFIX}-GeneScope-21 ]; then  #-d是否为存在的目录
         continue;
     fi
 
@@ -117,17 +117,20 @@ for PREFIX in R S T; do
         log_info "PREFIX: ${PREFIX}; KMER: ${KMER}"
 
         log_info "FastK"
-        FastK -v -T8 -t1 -k${KMER} \
+        FastK -v -T8 -t1 -k${KMER} \  #8个线程，最小kmer计数为1
             ../${PREFIX}1.fq.gz ../${PREFIX}2.fq.gz \
-            -NTable-${KMER}
+            -NTable-${KMER}  #输出文件名前缀
 
         log_info "GeneScope"
+        #Histex用于处理和分析 k-mer 频率
+        #-p 1：ploidy 设为 1（单倍体）
         Histex -G Table-${KMER} |
             Rscript ../../0_script/genescopefk.R -k ${KMER} -p 1 -o ${PREFIX}-GeneScope-${KMER}
-
+        #KatGC计算GC含量
+        #-x1.9：设置 x 轴范围为 0-1.9× 平均深度
         KatGC -T8 -x1.9 -s Table-${KMER} ${PREFIX}-Merqury-KatGC-${KMER}
 
-        Fastrm Table-${KMER}
+        Fastrm Table-${KMER} #删除 FastK 生成的临时文件
     done
 done
 
@@ -136,7 +139,7 @@ for PREFIX in R S T; do
         if [ ! -e ${PREFIX}-GeneScope-${KMER}/summary.txt ]; then
             continue
         fi
-
+        #提取 k-mer 覆盖率（COV）
         COV=$(
             cat ${PREFIX}-GeneScope-${KMER}/model.txt |
                 grep '^kmercov' |
@@ -152,7 +155,7 @@ for PREFIX in R S T; do
             sed "3,7 s/^/\t/" |
             perl -nlp -e 's/\s{2,}/\t/g; s/\s+$//g;' |
             perl -nla -F'\t' -e '
-                @fields = map {/\bNA\b/ ? q() : $_ } @F;        # Remove NA fields
+                @fields = map {/\bNA\b/ ? q() : $_ } @F;        # Remove NA fields #\b 表示单词边界
                 $fields[2] = q() if $fields[2] eq $fields[3];   # Remove identical fields
                 print join qq(\t), @fields
             '
@@ -160,11 +163,11 @@ for PREFIX in R S T; do
         printf "\tKmer Cov\t\t${COV}\n"
     done
 done |
-    keep-header -- grep -v 'property' \
+    keep-header -- grep -v 'property' \  #过滤掉包含 property 的行
     > statFastK.tsv
 
 cat statFastK.tsv |
-    rgr md stdin --right 3-4 \
+    rgr md stdin --right 3-4 \  #第 3 列和第 4 列右对齐
     > statFastK.md
 
 echo -e "\nTable: statFastK\n" >> statFastK.md
