@@ -177,7 +177,7 @@ cat ${DIR_MERGE}/others.intermediate_1.fasta |
     sed 's/>//' \
     > ${DIR_MERGE}/others.txt
 
-hnsm some -l 0 \
+hnsm some \
     ${DIR_MERGE}/others.intermediate_1.fasta \
     ${DIR_MERGE}/others.txt \
     -o ${DIR_MERGE}/others.non-contained.fasta
