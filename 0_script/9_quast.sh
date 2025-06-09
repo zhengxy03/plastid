@@ -186,6 +186,7 @@ fi
 QUAST_LABEL=$( echo "${QUAST_LABEL}" | sed 's/,$//' )
 
 rm -fr 9_quast
+#使用 QUAST（Quality Assessment Tool for Genome Assemblies）对基因组组装结果进行质量评估
 quast.py --threads 8 --min-contig 100 \
     ${QUAST_TARGET} \
     --label ${QUAST_LABEL} \
