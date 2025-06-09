@@ -119,6 +119,7 @@ fi
 #----------------------------#
 # spades
 #----------------------------#
+#MEGAHIT 是专门针对宏基因组数据优化的组装工具，能够高效处理海量短读长测序数据
 if [ -e 8_megahit/megahit.non-contained.fasta ]; then
     log_info "8_megahit/megahit.non-contained.fasta presents"
 else

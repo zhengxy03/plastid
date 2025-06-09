@@ -114,7 +114,7 @@ for Q in 0 25 30; do
             continue;
         fi
 
-        START_TIME=$(date +%s)
+        START_TIME=$(date +%s) #以 Unix 时间戳（秒） 输出当前时间
 
         cd 2_illumina/Q${Q}L${L}
 

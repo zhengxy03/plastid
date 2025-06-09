@@ -28,9 +28,6 @@ cbp install mosdepth
 brew tap brewsci/bio
 brew tap wang-q/tap
 
-brew install perl cpanminus
-brew install r
-brew install parallel pigz jq
 
 FILES=$(curl -fsSL https://api.github.com/repos/wang-q/builds/git/trees/master?recursive=1 |
         jq -r '.tree[] | select( .path | startswith("tar/") ) | .path' |
@@ -38,7 +35,7 @@ FILES=$(curl -fsSL https://api.github.com/repos/wang-q/builds/git/trees/master?r
 cd $HOME/bin/
 
 for file in $FILES; do
-    echo "下载: $file"
+    echo "download: $file"
     
     curl -fsSL --retry 5 --retry-delay 2 \
         "https://github.com/wang-q/builds/raw/master/tar/$file" \
@@ -47,7 +44,7 @@ for file in $FILES; do
 done
 
 for file in *.linux.tar.gz; do
-    echo "解压: $file"
+    echo "tar: $file"
     tar xvzf "$file"
 done
 
@@ -225,10 +222,10 @@ popd
 ```
 Options:
   -u, --unitigger <unitigger>  Which unitig constructor to use: bcalm, bifrost, superreads, or tadpole [default: superreads]
-                                - bcalm     # 基于Bloom Filter的算法
-                                - bifrost   # 图形化构建工具
-                                - superreads # 基于k-mer的超读长算法
-                                - tadpole   # BBtools中的快速组装工具
+                                - bcalm     # 基于Bloom Filter的算法, 快速判断一个 k-mer 是否存在于测序数据中
+                                - bifrost   # 图形化构建工具, 处理多样本数据，可识别样本间的变异
+                                - superreads # 基于k-mer的超读长算法, 将重叠的短读长合并为更长的连续序列，减少后续组装的复杂度
+                                - tadpole   # BBtools中的快速组装工具, 贪心延伸：从种子 k-mer 开始，每次选择最可能的延伸路径，直到无法继续
       --estsize <estsize>      Estimated genome size [default: auto]
       --kmer <kmer>            K-mer size to be used [default: 31]
       --min <min>              Minimal length of unitigs [default: 1000]
@@ -261,6 +258,7 @@ popd
 锚定
 * anchors
 ```
+#用于从 单元型序列（unitigs） 和 测序读长（reads） 中识别锚定序列（Anchors）
 Usage: anchr anchors [OPTIONS] <infiles>...
 
 Arguments:
@@ -271,7 +269,7 @@ Options:
       --mincov <mincov>      Minimal coverage of reads [default: 5]
       --readl <readl>        Length of reads [default: 100]
       --mscale <mscale>      The scale factor for MAD, median +/- k * MAD [default: 3]
-      --lscale <lscale>      The scale factor for lower, (median - k * MAD) / l [default: 3]
+      --lscale <lscale>      The scale factor for lower, (median - k * MAD) / l [default: 3] #异常值检测参数（基于中位数绝对偏差 MAD）
       --uscale <uscale>      The scale factor for upper, (median + k * MAD) * u [default: 2]
       --fill <fill>          Fill holes short than or equal to this [default: 1]
       --ratio <ratio>        Fill large holes (opt.fill * 10) when covered ratio larger than this [default: 0.98]
