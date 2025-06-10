@@ -221,5 +221,6 @@ anchr template \
 `mg1655: run`
 ```
 bash 0_script/1_repetitive.sh
-bash 0_script/0_master.sh
+#bash 0_script/0_master.sh
+bsub -q mpi -n 24 -J "mg1655-0_master" "bash 0_script/0_master.sh"
 ```
