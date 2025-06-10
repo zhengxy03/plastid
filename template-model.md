@@ -93,6 +93,7 @@ Options:
     * --busco
 ```
 ## *Mycoplasma genitalium* G37
+> g37:生殖支原体，基因组最小的支原体<br>
 `g37: reference`
 ```
 mkdir -p g37/1_genome
@@ -151,6 +152,7 @@ bash 0_script/0_master.sh
 ```
 
 ## *Escherichia coli* str. K-12 substr. MG1655
+> mg1655:野生型菌株，具备完整的野生型基因背景<br>
 `mg1655: reference`
 ```
 mkdir -p mg1655/1_genome
@@ -223,4 +225,86 @@ anchr template \
 bash 0_script/1_repetitive.sh
 #bash 0_script/0_master.sh
 bsub -q mpi -n 24 -J "mg1655-0_master" "bash 0_script/0_master.sh"
+```
+## *Escherichia coli* str. K-12 substr. DH5alpha
+> dh5alpha:经过诱变的K12菌株，常用于蓝白斑筛选<br>
+`dh5alpha: reference`
+```
+mkdir -p dh5alpha/1_genome
+cd dh5alpha/1_genome
+
+curl -O "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/899/475/GCF_002899475.1_ASM289947v1/GCF_002899475.1_ASM289947v1_genomic.fna.gz"
+gzip -d GCF_002899475.1_ASM289947v1_genomic.fna.gz
+mv GCF_002899475.1_ASM289947v1_genomic.fna genome.fa
+sed -i '1s/.*/>1/' genome.fa
+```
+`dh5alpha: download`
+```
+cat << EOF > source.csv
+SRP251726,dh5alpha,HiSeq 2500 PE125
+EOF
+
+anchr ena info | perl - -v source.csv > ena_info.yml
+anchr ena prep | perl - ena_info.yml
+
+rgr md ena_info.tsv --fmt
+
+aria2c -x 9 -s 3 -c -i ena_info.ftp.txt
+
+md5sum --check ena_info.md5.txt
+```
+* rsync to hpcc
+```
+rsync -avP \
+    ~/project/anchr/dh5alpha/ \
+    wangq@202.119.37.251:zxy/dh5alpha
+```
+* illumina
+```
+mkdir -p 2_illumina
+cd 2_illumina
+
+ln -s ../SRR11245239_1.fastq.gz R1.fq.gz
+ln -s ../SRR11245239_2.fastq.gz R2.fq.gz
+```
+
+`mg1655: template`
+```
+anchr template \
+    --genome 4583637 \
+    --parallel 24 \
+    --xmx 80g \
+    --queue mpi \
+    \
+    --repetitive \
+    \
+    --fastqc \
+    --insertsize \
+    --fastk \
+    \
+    --trim "--dedupe --cutoff 30 --cutk 31" \
+    --qual "25 30" \
+    --len "60" \
+    --filter "adapter artifact" \
+    \
+    --quorum \
+    --merge \
+    --ecphase "1 2 3" \
+    \
+    --cov "40 80" \
+    --unitigger "bcalm bifrost superreads" \
+    --statp 2 \
+    --readl 125 \
+    --uscale 2 \
+    --lscale 3 \
+    --redo \
+    \
+    --extend \
+    \
+    --busco
+```
+`dh5alpha: run`
+```
+bash 0_script/1_repetitive.sh
+bsub -q mpi -n 24 -J "dh5alpha-0_master" "bash 0_script/0_master.sh"
 ```
