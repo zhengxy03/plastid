@@ -255,8 +255,8 @@ FOLD 0, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64
 * 叶绿体的拷贝数>线粒体>核基因组
 # Symlink
 ```
-mkdir -p ~/data/plastid/evaluation
-cd ~/data/plastid/evaluation
+mkdir -p evaluation
+cd evaluation
 
 SRRS=(
     'SRR616966::col0'  # Col-0
@@ -267,7 +267,6 @@ SRRS=(
     'SRR545231::nip'    # Nipponbare
     'SRR063638::nip'
     'SRR1542423::a17'   # A17
-    'SRR1572628::h1706' # Heinz 1706
 )
 FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
 
@@ -301,3 +300,243 @@ done
 rsync -avP \
     ~/data/plastid/ \
     wangq@202.119.37.251:data/plastid
+```
+```
+cd zxy/plastid
+cp -r ~/data/plastid/ena .
+cp -r ~/data/plastid/genome .
+
+cd evaluation
+
+SRRS=(
+    'SRR616966::41'  # Col-0
+    'SRR611086::78'
+    'SRR5216995::121'
+    'SRR616965::42'  # Ler-0
+    'SRR611087::79'
+    'SRR545231::46'  # Nipponbare
+    'SRR063638::15'
+    'SRR1542423::23' # A17
+)
+FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
+
+for item in "${SRRS[@]}"; do
+    SRR="${item%%::*}"
+    DEPTH="${item##*::}"
+
+    for FOLD in "${FOLDS[@]}"; do
+        CUTOFF=$(bc <<< "(${DEPTH} * ${FOLD}) / 1")
+
+        echo 1>&2 "==> ${item} ${FOLD}"
+
+        BASE_NAME=${SRR}_${FOLD}
+        pushd ${BASE_NAME}
+
+        if [ ! -f 3_bwa/join.tsv ]; then
+            rm *.sh
+            if [[ "${FOLD}" == "0" ]]; then
+                anchr template \
+                    --genome $(tsv-summarize 1_genome/chr.sizes --sum 2) \
+                    --parallel 24 \
+                    --xmx 80g \
+                    \
+                    --fastqc \
+                    --insertsize \
+                    --fastk \
+                    \
+                    --trim "--dedupe" \
+                    --qual "25" \
+                    --len "60" \
+                    --filter "adapter artifact" \
+                    \
+                    --bwa Q25L60
+
+                bsub -q mpi -n 24 -J "${BASE_NAME}" "
+                    bash 0_script/2_fastqc.sh
+                    bash 0_script/2_insert_size.sh
+                    bash 0_script/_kat.sh
+                    bash 0_script/2_trim.sh
+                    bash 0_script/9_stat_reads.sh
+                    bash 0_script/3_bwa.sh
+                "
+            else
+                anchr template \
+                    --genome $(tsv-summarize 1_genome/chr.sizes --sum 2) \
+                    --parallel 24 \
+                    --xmx 80g \
+                    \
+                    --trim "--dedupe --cutoff ${CUTOFF} --cutk 31" \
+                    --qual "25" \
+                    --len "60" \
+                    --filter "adapter artifact" \
+                    \
+                    --bwa Q25L60
+
+                bsub -q mpi -n 24 -J "${BASE_NAME}" "
+                    bash 0_script/2_trim.sh
+                    bash 0_script/9_stat_reads.sh
+                    bash 0_script/3_bwa.sh
+                "
+            fi
+
+        fi
+
+        popd
+
+    done
+done
+```
+# Combine chromosomes
+```
+cd evaluation
+
+SRRS=(
+    'SRR616966::5'   # Col-0
+    'SRR611086::5'
+    'SRR5216995::5'
+    'SRR616965::5'   # Ler-0
+    'SRR611087::5'
+    'SRR545231::12'  # Nipponbare
+    'SRR063638::12'
+    'SRR1542423::8'  # A17
+)
+FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
+
+for item in "${SRRS[@]}"; do
+    SRR="${item%%::*}"
+    CHR_NUM="${item##*::}"
+
+    for FOLD in "${FOLDS[@]}"; do
+        BASE_NAME=${SRR}_${FOLD}
+
+        echo 1>&2 "==> ${BASE_NAME}"
+
+        pushd ${BASE_NAME}/3_bwa
+
+        cat join.tsv |
+            grep -v "^Mt" |
+            grep -v "^Pt" |
+            tsv-summarize -H --sum chrLength,covLength,bases --min min --max max |
+            sed '1d' |
+            perl -e '
+                my $line = <>;
+                chomp $line;
+                my ($chrLength, $covLength, $bases, $min, $max, ) = split qq(\t), $line;
+                my $covRate = sprintf qq(%.4f), $covLength / $chrLength;
+                my $mean = sprintf qq(%.2f), $bases / $chrLength;
+                print join qq(\t), (
+                    "Nc", $chrLength, $covLength, $covRate, $bases, $mean, $min, $max,
+                );
+                print qq(\n);
+            ' |
+            (cat join.tsv | sed "2,$((CHR_NUM+1))d" && cat) \
+            > combine.tsv
+
+        popd
+
+    done
+done
+```
+# Merge all results
+```
+cd evaluation
+
+SRRS=(
+    'SRR616966::Col-0'      # Col-0
+    'SRR611086::Col-0'
+    'SRR5216995::Col-0'
+    'SRR616965::Ler-0'      # Ler-0
+    'SRR611087::Ler-0'
+    'SRR545231::Nipponbare' # Nipponbare
+    'SRR063638::NP'
+    'SRR1542423::A17'       # A17
+)
+FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
+
+for item in "${SRRS[@]}"; do
+    SRR="${item%%::*}"
+    STRAIN="${item##*::}"
+
+    for FOLD in "${FOLDS[@]}"; do
+        BASE_NAME=${SRR}_${FOLD}
+
+        pushd ${BASE_NAME}/3_bwa > /dev/null
+
+        echo -e "Fold\tchrom\n${FOLD}\tNc\n${FOLD}\tMt\n${FOLD}\tPt" |
+            tsv-join -H --filter-file combine.tsv --key-fields chrom --append-fields 2-8
+
+        popd > /dev/null
+
+    done |
+        tsv-uniq \
+        > ${SRR}_folds.tsv
+
+    echo
+    echo "Table: ${STRAIN} ${SRR} Folds"
+    echo
+    for PART in Nc Mt Pt; do
+        cat ${SRR}_folds.tsv |
+            tsv-filter -H --str-eq chrom:${PART} |
+            mlr --itsv --omd cat
+        echo
+        echo
+    done
+
+done
+```
+```
+cd ~/data/plastid/evaluation
+
+SRRS=(
+    'SRR616966::Col-0'      # Col-0
+    'SRR611086::Col-0'
+    'SRR5216995::Col-0'
+    'SRR616965::Ler-0'      # Ler-0
+    'SRR611087::Ler-0'
+    'SRR545231::Nipponbare' # Nipponbare
+    'SRR063638::NP'
+    'SRR1542423::A17'       # A17
+    'SRR1572628::Heinz1706' # Heinz 1706
+)
+FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
+
+for item in "${SRRS[@]}"; do
+    SRR="${item%%::*}"
+    STRAIN="${item##*::}"
+
+    for FOLD in "${FOLDS[@]}"; do
+        BASE_NAME=${SRR}_${FOLD}
+
+        cat ${BASE_NAME}/statReads.md |
+            mdtable2csv |
+            mlr --icsv --otsv cat |
+            grep -v "^Name" |
+            grep -v "^Genome" |
+            tsv-select -f 1,3 |
+            (echo -e "Fold\t${FOLD}" && cat) |
+            datamash transpose
+    done |
+        tsv-uniq \
+        > ${SRR}_reads.tsv
+
+    echo
+    echo "Table: ${STRAIN} ${SRR} Reads"
+    echo
+    cat ${SRR}_reads.tsv |
+        mlr --itsv --omd cat
+    echo
+```
+# Remove intermediate files
+```
+cd ~/data/plastid/evaluation
+
+find . -type d -name "trim" | xargs rm -fr
+find . -type f -path "*3_bwa/genome.fa*" | xargs rm
+find . -type f -name "*.ba[mi]" | xargs rm
+find . -type f -name "*.per-base.bed.gz" | xargs rm
+
+find . -type f -name "*.tadpole.contig.*" | xargs rm
+
+find . -type f -name "core.*" | xargs rm
+find . -type f -name "output.*" | xargs rm
+```
