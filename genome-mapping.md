@@ -485,7 +485,7 @@ for item in "${SRRS[@]}"; do
 done
 ```
 ```
-cd ~/data/plastid/evaluation
+cd evaluation
 
 SRRS=(
     'SRR616966::Col-0'      # Col-0
@@ -496,7 +496,6 @@ SRRS=(
     'SRR545231::Nipponbare' # Nipponbare
     'SRR063638::NP'
     'SRR1542423::A17'       # A17
-    'SRR1572628::Heinz1706' # Heinz 1706
 )
 FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
 
@@ -507,7 +506,7 @@ for item in "${SRRS[@]}"; do
     for FOLD in "${FOLDS[@]}"; do
         BASE_NAME=${SRR}_${FOLD}
 
-        cat ${BASE_NAME}/statReads.md |
+        cat ${BASE_NAME}/9_markdown/statReads.md |
             mdtable2csv |
             mlr --icsv --otsv cat |
             grep -v "^Name" |
@@ -525,11 +524,11 @@ for item in "${SRRS[@]}"; do
     cat ${SRR}_reads.tsv |
         mlr --itsv --omd cat
     echo
+
+done
 ```
 # Remove intermediate files
 ```
-cd ~/data/plastid/evaluation
-
 find . -type d -name "trim" | xargs rm -fr
 find . -type f -path "*3_bwa/genome.fa*" | xargs rm
 find . -type f -name "*.ba[mi]" | xargs rm
