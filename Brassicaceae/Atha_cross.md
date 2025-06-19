@@ -315,8 +315,8 @@ cd analysis
 cp ../Sample_Col_G/3_gatk/R.filtered.vcf Col.vcf
 cp ../Sample_Ler_XL_4/3_gatk/R.filtered.vcf Ler.vcf
 
-bcftools view --apply-filters PASS --max-alleles 2 --targets Pt -Oz Col.vcf.gz > Col_Pt.vcf.gz
-bcftools view --apply-filters PASS --max-alleles 2 --targets Pt -Oz Ler.vcf.gz > Ler_Pt.vcf.gz
+bcftools view --apply-filters PASS --max-alleles 2 --targets Pt  --include "AF>0.01" -Oz Col.vcf.gz > Col_Pt.vcf.gz
+bcftools view --apply-filters PASS --max-alleles 2 --targets Pt  --include "AF>0.01" -Oz Ler.vcf.gz > Ler_Pt.vcf.gz
 
 
 
@@ -375,7 +375,6 @@ bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_informative.vcf.gz > F2_GT_matrix
 
 awk -v OFS='\t' '
     BEGIN {
-        # 加载的亲本 GT
         while ((getline < "informative_sites.tsv") > 0) {
             key = $1":"$2
             col_gt[key] = $5
@@ -401,15 +400,20 @@ awk -v OFS='\t' '
             col = col_gt[key]
             ler = ler_gt[key]
 
-            if (gt == col) {
+            if (gt == "./.") {
+                row = row "\tNA"
+                continue
+            }
+
+            if ((gt == col "/" ler) || (gt == ler "/" col)) {
+                row = row "\tHet"
+                count_het++
+            } else if (gt == col) {
                 row = row "\tCol"
                 count_col++
             } else if (gt == ler) {
                 row = row "\tLer"
                 count_ler++
-            } else if ((gt == col "/" ler) || (gt == ler "/" col)) {
-                row = row "\tHet"
-                count_het++
             } else {
                 row = row "\tMut"
                 count_mut++
@@ -432,10 +436,16 @@ awk -v OFS='\t' '
     }
 ' F2_GT_matrix.tsv
 
-#sample
-awk -v OFS='\t' -v target_col=35 '
+#单个样本
+i=14  # 第14个样本
+
+sample=$(awk -v line=$i 'NR==line { print $1 }' ../opts.tsv)
+target_col=$((i + 2))  
+
+echo "正在处理样本 $sample，列号 $target_col"
+
+awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
     BEGIN {
-        # 加载的亲本 GT
         while ((getline < "informative_sites.tsv") > 0) {
             key = $1":"$2
             col_gt[key] = $5
@@ -443,31 +453,39 @@ awk -v OFS='\t' -v target_col=35 '
         }
 
         count_col = count_ler = count_het = count_mut = total = 0
-        print "CHROM_POS\tSAMPLE_14" > "classification_matrix_sample.tsv"
+        print "CHROM_POS", sample_name > "classification_matrix_sample.tsv"
     }
-    NR >= 1 {
+
+    NR > 1 {
         key = $1":"$2
         gt = $target_col
         col = col_gt[key]
         ler = ler_gt[key]
 
-        if (gt == col) {
+        if (gt == "./.") {
+            label = "NA"
+            print key, label >> "classification_matrix_sample.tsv"
+            next
+        }
+
+        if ((gt == col "/" ler) || (gt == ler "/" col)) {
+            label = "Het"
+            count_het++
+        } else if (gt == col) {
             label = "Col"
             count_col++
         } else if (gt == ler) {
             label = "Ler"
             count_ler++
-        } else if ((gt == col "/" ler) || (gt == ler "/" col)) {
-            label = "Het"
-            count_het++
         } else {
             label = "Mut"
             count_mut++
         }
-        total++
 
+        total++
         print key, label >> "classification_matrix_sample.tsv"
     }
+
     END {
         print "来源分类比例：" > "summary_sample.txt"
         if (total > 0) {
