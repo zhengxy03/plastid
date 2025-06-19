@@ -297,7 +297,12 @@ cat opts.tsv |
         bcftools index -f vcf/{1}.vcf.gz
     '
 
-
+bcftools merge --merge all -l <(
+        cat opts.tsv |
+            cut -f 1 |
+            parallel -k -j 1 ' [ -f vcf/{}.vcf.gz ] && echo "vcf/{}.vcf.gz" '
+    ) \
+    > Osat_cross.vcf
 
 rm -fr vcf
 ```
@@ -475,4 +480,4 @@ awk -v OFS='\t' -v target_col=35 '
         }
     }
 ' F2_GT_matrix.tsv
-
+```
