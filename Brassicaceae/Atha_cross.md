@@ -315,12 +315,15 @@ cd analysis
 cp ../Sample_Col_G/3_gatk/R.filtered.vcf Col.vcf
 cp ../Sample_Ler_XL_4/3_gatk/R.filtered.vcf Ler.vcf
 
+bgzip Col.vcf Ler.vcf
+
 bcftools view --apply-filters PASS --max-alleles 2 --targets Pt  --include "AF>0.01" -Oz Col.vcf.gz > Col_Pt.vcf.gz
 bcftools view --apply-filters PASS --max-alleles 2 --targets Pt  --include "AF>0.01" -Oz Ler.vcf.gz > Ler_Pt.vcf.gz
 
 
 
 #后代
+cd ..
 cat opts.tsv |
     parallel --colsep '\t' --no-run-if-empty --linebuffer -k -j 4 '
         if [ ! -d "{1}" ] || [ ! -f "{1}/3_gatk/R.filtered.vcf" ]; then
@@ -350,15 +353,19 @@ bcftools merge --merge all -l <(
     ) \
     > Atha_cross.vcf
 
+cd analysis
 bcftools index Col_Pt.vcf.gz
 bcftools index Ler_Pt.vcf.gz
 bgzip ../Atha_cross.vcf
-bcftools index ../Atha_cross.vcf.gz
+bcftools index -f ../Atha_cross.vcf.gz
 
 
 #亲本差异位点
 bcftools reheader -s <(echo "Col") Col_Pt.vcf.gz -o Col_Pt.renamed.vcf.gz
 bcftools reheader -s <(echo "Ler") Ler_Pt.vcf.gz -o Ler_Pt.renamed.vcf.gz
+bcftools index Col_Pt.renamed.vcf.gz
+bcftools index Ler_Pt.renamed.vcf.gz
+
 bcftools merge -m all Col_Pt.renamed.vcf.gz Ler_Pt.renamed.vcf.gz -Oz -o Col_Ler.merged.vcf.gz
 bcftools index Col_Ler.merged.vcf.gz
 
@@ -366,7 +373,7 @@ bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT\t]\n' Col_Ler.merged.vcf.gz > 
 awk '$5 != $6' Col_Ler_GT.tsv > informative_sites.tsv
 
 #提取F2 GT
-bcftools view -R <(cut -f1,2 informative_sites.tsv) Atha_cross.vcf.gz -Oz -o F2_informative.vcf.gz
+bcftools view -R <(cut -f1,2 informative_sites.tsv) ../Atha_cross.vcf.gz -Oz -o F2_informative.vcf.gz
 
 bcftools index F2_informative.vcf.gz
 bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_informative.vcf.gz > F2_GT_matrix.tsv
@@ -498,4 +505,99 @@ awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
         }
     }
 ' F2_GT_matrix.tsv
+
+
+#汇总
+echo "开始为每个样本生成单独的分类统计信息..."
+total_samples=$(cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | wc -l)
+current=1
+
+cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r line; do
+    sample=$(echo "$line" | cut -f1)
+    target_col=$((current + 2))  # 列号 = 样本序号 + 2 (跳过CHROM和POS列)
+    
+    echo "[$current/$total_samples] 正在处理样本 $sample，列号 $target_col"
+    
+    # 为每个样本生成单独的分类矩阵和统计信息
+    awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
+        BEGIN {
+            while ((getline < "informative_sites.tsv") > 0) {
+                key = $1":"$2
+                col_gt[key] = $5
+                ler_gt[key] = $6
+            }
+
+            count_col = count_ler = count_het = count_mut = total = 0
+            print "CHROM_POS", sample_name > "classification_matrix_" sample_name ".tsv"
+        }
+
+        NR > 1 {
+            key = $1":"$2
+            gt = $target_col
+            col = col_gt[key]
+            ler = ler_gt[key]
+
+            if (gt == "./.") {
+                label = "NA"
+                print key, label >> "classification_matrix_" sample_name ".tsv"
+                next
+            }
+
+            if ((gt == col "/" ler) || (gt == ler "/" col)) {
+                label = "Het"
+                count_het++
+            } else if (gt == col) {
+                label = "Col"
+                count_col++
+            } else if (gt == ler) {
+                label = "Ler"
+                count_ler++
+            } else {
+                label = "Mut"
+                count_mut++
+            }
+
+            total++
+            print key, label >> "classification_matrix_" sample_name ".tsv"
+        }
+
+        END {
+            print "来源分类比例：" > "summary_" sample_name ".txt"
+            if (total > 0) {
+                print "Col型\t" count_col "\t" count_col / total * 100 "%" >> "summary_" sample_name ".txt"
+                print "Ler型\t" count_ler "\t" count_ler / total * 100 "%" >> "summary_" sample_name ".txt"
+                print "杂合\t" count_het "\t" count_het / total * 100 "%" >> "summary_" sample_name ".txt"
+                print "自发突变\t" count_mut "\t" count_mut / total * 100 "%" >> "summary_" sample_name ".txt"
+            } else {
+                print "无有效基因型参与分类" >> "summary_" sample_name ".txt"
+            }
+        }
+    ' F2_GT_matrix.tsv
+    
+    current=$((current + 1))
+done
+
+# 生成样本比例汇总表格
+echo "开始生成样本比例汇总表格..."
+echo -e "样本名称\tCol型比例(%)\tLer型比例(%)\t杂合比例(%)\t自发突变比例(%)" > sample_ratio_summary.tsv
+
+# 获取样本列表
+samples=$(cat ../opts.tsv | cut -f1 | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$")
+
+# 遍历每个样本，提取统计数据
+for sample in $samples; do
+    # 检查样本的统计文件是否存在
+    if [ -f "summary_${sample}.txt" ]; then
+        # 从统计文件中提取各类型比例
+        col_ratio=$(grep "Col型" "summary_${sample}.txt" | awk '{print $3}')
+        ler_ratio=$(grep "Ler型" "summary_${sample}.txt" | awk '{print $3}')
+        het_ratio=$(grep "杂合" "summary_${sample}.txt" | awk '{print $3}')
+        mut_ratio=$(grep "自发突变" "summary_${sample}.txt" | awk '{print $3}')
+        
+        # 将数据格式化为表格行
+        echo -e "$sample\t$col_ratio\t$ler_ratio\t$het_ratio\t$mut_ratio" >> sample_ratio_summary.tsv
+    else
+        echo "警告: 样本 $sample 的统计文件不存在，跳过"
+    fi
+done
 ```
