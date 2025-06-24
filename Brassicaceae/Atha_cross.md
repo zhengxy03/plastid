@@ -352,6 +352,8 @@ bcftools merge --merge all -l <(
             parallel -k -j 1 ' [ -f vcf/{}.vcf.gz ] && echo "vcf/{}.vcf.gz" '
     ) \
     > Atha_cross.vcf
+bcftools stats Atha_cross.vcf > Atha_cross.stats
+plot-vcfstats  Atha_cross.stats  -p  plots/Atha_cross.stats
 
 cd analysis
 bcftools index Col_Pt.vcf.gz
@@ -403,7 +405,7 @@ awk -v OFS='\t' '
         row = key
 
         for (i=3; i<=NF; i++) {
-            gt = $i
+            gt = $i # 当前样本的基因型
             col = col_gt[key]
             ler = ler_gt[key]
 
@@ -412,7 +414,15 @@ awk -v OFS='\t' '
                 continue
             }
 
-            if ((gt == col "/" ler) || (gt == ler "/" col)) {
+            col_allele = substr(col, 1, 1)  # 提取Col的第一个等位基因（如"0/0" → "0"）
+            ler_allele = substr(ler, 1, 1)  # 提取Ler的第一个等位基因（如"1/1" → "1"）
+
+            het1 = col_allele "/" ler_allele  # 如"0/1"
+            het2 = ler_allele "/" col_allele  # 如"1/0"
+            het1_pipe = col_allele "|" ler_allele  # 如"0|1"
+            het2_pipe = ler_allele "|" col_allele  # 如"1|0"
+            
+            if (gt == het1 || gt == het2 || gt == het1_pipe || gt == het2_pipe) {
                 row = row "\tHet"
                 count_het++
             } else if (gt == col) {
@@ -475,7 +485,16 @@ awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
             next
         }
 
-        if ((gt == col "/" ler) || (gt == ler "/" col)) {
+        col_allele = substr(col, 1, 1)
+        ler_allele = substr(ler, 1, 1)
+
+  
+        het1 = col_allele "/" ler_allele  # 如"0/1"
+        het2 = ler_allele "/" col_allele  # 如"1/0"
+        het1_pipe = col_allele "|" ler_allele  # 如"0|1"
+        het2_pipe = ler_allele "|" col_allele  # 如"1|0"
+
+        if (gt == het1 || gt == het2 || gt == het1_pipe || gt == het2_pipe) {
             label = "Het"
             count_het++
         } else if (gt == col) {
@@ -578,23 +597,18 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
 done
 
 # 生成样本比例汇总表格
-echo "开始生成样本比例汇总表格..."
 echo -e "样本名称\tCol型比例(%)\tLer型比例(%)\t杂合比例(%)\t自发突变比例(%)" > sample_ratio_summary.tsv
 
-# 获取样本列表
+
 samples=$(cat ../opts.tsv | cut -f1 | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$")
 
-# 遍历每个样本，提取统计数据
 for sample in $samples; do
-    # 检查样本的统计文件是否存在
     if [ -f "summary_${sample}.txt" ]; then
-        # 从统计文件中提取各类型比例
         col_ratio=$(grep "Col型" "summary_${sample}.txt" | awk '{print $3}')
         ler_ratio=$(grep "Ler型" "summary_${sample}.txt" | awk '{print $3}')
         het_ratio=$(grep "杂合" "summary_${sample}.txt" | awk '{print $3}')
         mut_ratio=$(grep "自发突变" "summary_${sample}.txt" | awk '{print $3}')
         
-        # 将数据格式化为表格行
         echo -e "$sample\t$col_ratio\t$ler_ratio\t$het_ratio\t$mut_ratio" >> sample_ratio_summary.tsv
     else
         echo "警告: 样本 $sample 的统计文件不存在，跳过"
