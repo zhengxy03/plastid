@@ -527,7 +527,6 @@ awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
 
 
 #汇总
-echo "开始为每个样本生成单独的分类统计信息..."
 total_samples=$(cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | wc -l)
 current=1
 
