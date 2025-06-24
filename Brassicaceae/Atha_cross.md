@@ -535,8 +535,7 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
     target_col=$((current + 2))  # 列号 = 样本序号 + 2 (跳过CHROM和POS列)
     
     echo "[$current/$total_samples] 正在处理样本 $sample，列号 $target_col"
-    
-    # 为每个样本生成单独的分类矩阵和统计信息
+
     awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
         BEGIN {
             while ((getline < "informative_sites.tsv") > 0) {
@@ -597,8 +596,6 @@ done
 
 # 生成样本比例汇总表格
 echo -e "样本名称\tCol型比例(%)\tLer型比例(%)\t杂合比例(%)\t自发突变比例(%)" > sample_ratio_summary.tsv
-
-
 samples=$(cat ../opts.tsv | cut -f1 | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$")
 
 for sample in $samples; do
