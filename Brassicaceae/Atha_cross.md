@@ -559,8 +559,16 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
                 print key, label >> "classification_matrix_" sample_name ".tsv"
                 next
             }
+            
+            col_allele = substr(col, 1, 1)
+            ler_allele = substr(ler, 1, 1)
 
-            if ((gt == col "/" ler) || (gt == ler "/" col)) {
+            het1 = col_allele "/" ler_allele  # 如"0/1"
+            het2 = ler_allele "/" col_allele  # 如"1/0"
+            het1_pipe = col_allele "|" ler_allele  # 如"0|1"
+            het2_pipe = ler_allele "|" col_allele  # 如"1|0"
+
+            if (gt == het1 || gt == het2 || gt == het1_pipe || gt == het2_pipe) {
                 label = "Het"
                 count_het++
             } else if (gt == col) {
