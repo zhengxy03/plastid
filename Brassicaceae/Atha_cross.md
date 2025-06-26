@@ -390,7 +390,7 @@ awk -v OFS='\t' '
             ler_gt[key] = $6
         }
 
-        count_col = count_ler = count_het = count_mut = total = 0
+        count_col = count_ler = count_mut = total = 0
     }
     NR==1 {
         header = "CHROM_POS"
@@ -405,7 +405,7 @@ awk -v OFS='\t' '
         row = key
 
         for (i=3; i<=NF; i++) {
-            gt = $i # 当前样本的基因型
+            gt = $i
             col = col_gt[key]
             ler = ler_gt[key]
 
@@ -414,18 +414,7 @@ awk -v OFS='\t' '
                 continue
             }
 
-            col_allele = substr(col, 1, 1)  # 提取Col的第一个等位基因（如"0/0" → "0"）
-            ler_allele = substr(ler, 1, 1)  # 提取Ler的第一个等位基因（如"1/1" → "1"）
-
-            het1 = col_allele "/" ler_allele  # 如"0/1"
-            het2 = ler_allele "/" col_allele  # 如"1/0"
-            het1_pipe = col_allele "|" ler_allele  # 如"0|1"
-            het2_pipe = ler_allele "|" col_allele  # 如"1|0"
-            
-            if (gt == het1 || gt == het2 || gt == het1_pipe || gt == het2_pipe) {
-                row = row "\tHet"
-                count_het++
-            } else if (gt == col) {
+            if (gt == col) {
                 row = row "\tCol"
                 count_col++
             } else if (gt == ler) {
@@ -445,8 +434,7 @@ awk -v OFS='\t' '
         if (total > 0) {
             print "Col型\t" count_col "\t" count_col / total * 100 "%" >> "summary.txt"
             print "Ler型\t" count_ler "\t" count_ler / total * 100 "%" >> "summary.txt"
-            print "杂合\t" count_het "\t" count_het / total * 100 "%" >> "summary.txt"
-            print "自发突变\t" count_mut "\t" count_mut / total * 100 "%" >> "summary.txt"
+            print "突变型\t" count_mut "\t" count_mut / total * 100 "%" >> "summary.txt"
         } else {
             print "无有效基因型参与分类" >> "summary.txt"
         }
@@ -469,7 +457,7 @@ awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
             ler_gt[key] = $6
         }
 
-        count_col = count_ler = count_het = count_mut = total = 0
+        count_col = count_ler = count_mut = total = 0
         print "CHROM_POS", sample_name > "classification_matrix_sample.tsv"
     }
 
@@ -485,19 +473,8 @@ awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
             next
         }
 
-        col_allele = substr(col, 1, 1)
-        ler_allele = substr(ler, 1, 1)
 
-  
-        het1 = col_allele "/" ler_allele  # 如"0/1"
-        het2 = ler_allele "/" col_allele  # 如"1/0"
-        het1_pipe = col_allele "|" ler_allele  # 如"0|1"
-        het2_pipe = ler_allele "|" col_allele  # 如"1|0"
-
-        if (gt == het1 || gt == het2 || gt == het1_pipe || gt == het2_pipe) {
-            label = "Het"
-            count_het++
-        } else if (gt == col) {
+        if (gt == col) {
             label = "Col"
             count_col++
         } else if (gt == ler) {
@@ -517,8 +494,7 @@ awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
         if (total > 0) {
             print "Col型\t" count_col "\t" count_col / total * 100 "%" >> "summary_sample.txt"
             print "Ler型\t" count_ler "\t" count_ler / total * 100 "%" >> "summary_sample.txt"
-            print "杂合\t" count_het "\t" count_het / total * 100 "%" >> "summary_sample.txt"
-            print "自发突变\t" count_mut "\t" count_mut / total * 100 "%" >> "summary_sample.txt"
+            print "突变型\t" count_mut "\t" count_mut / total * 100 "%" >> "summary_sample.txt"
         } else {
             print "无有效基因型参与分类" >> "summary_sample.txt"
         }
@@ -535,7 +511,7 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
     target_col=$((current + 2))  # 列号 = 样本序号 + 2 (跳过CHROM和POS列)
     
     echo "[$current/$total_samples] 正在处理样本 $sample，列号 $target_col"
-
+    
     awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
         BEGIN {
             while ((getline < "informative_sites.tsv") > 0) {
@@ -544,7 +520,7 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
                 ler_gt[key] = $6
             }
 
-            count_col = count_ler = count_het = count_mut = total = 0
+            count_col = count_ler = count_mut = total = 0
             print "CHROM_POS", sample_name > "classification_matrix_" sample_name ".tsv"
         }
 
@@ -553,25 +529,14 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
             gt = $target_col
             col = col_gt[key]
             ler = ler_gt[key]
-
+            
             if (gt == "./.") {
                 label = "NA"
                 print key, label >> "classification_matrix_" sample_name ".tsv"
                 next
             }
             
-            col_allele = substr(col, 1, 1)
-            ler_allele = substr(ler, 1, 1)
-
-            het1 = col_allele "/" ler_allele  # 如"0/1"
-            het2 = ler_allele "/" col_allele  # 如"1/0"
-            het1_pipe = col_allele "|" ler_allele  # 如"0|1"
-            het2_pipe = ler_allele "|" col_allele  # 如"1|0"
-
-            if (gt == het1 || gt == het2 || gt == het1_pipe || gt == het2_pipe) {
-                label = "Het"
-                count_het++
-            } else if (gt == col) {
+            if (gt == col) {
                 label = "Col"
                 count_col++
             } else if (gt == ler) {
@@ -581,7 +546,7 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
                 label = "Mut"
                 count_mut++
             }
-
+            
             total++
             print key, label >> "classification_matrix_" sample_name ".tsv"
         }
@@ -591,8 +556,7 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
             if (total > 0) {
                 print "Col型\t" count_col "\t" count_col / total * 100 "%" >> "summary_" sample_name ".txt"
                 print "Ler型\t" count_ler "\t" count_ler / total * 100 "%" >> "summary_" sample_name ".txt"
-                print "杂合\t" count_het "\t" count_het / total * 100 "%" >> "summary_" sample_name ".txt"
-                print "自发突变\t" count_mut "\t" count_mut / total * 100 "%" >> "summary_" sample_name ".txt"
+                print "突变型\t" count_mut "\t" count_mut / total * 100 "%" >> "summary_" sample_name ".txt"
             } else {
                 print "无有效基因型参与分类" >> "summary_" sample_name ".txt"
             }
@@ -602,20 +566,19 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
     current=$((current + 1))
 done
 
-# 生成样本比例汇总表格
-echo -e "样本名称\tCol型比例(%)\tLer型比例(%)\t杂合比例(%)\t自发突变比例(%)" > sample_ratio_summary.tsv
+echo -e "样本名称\tCol型比例(%)\tLer型比例(%)\t突变型比例(%)" > sample_ratio_summary.tsv
 samples=$(cat ../opts.tsv | cut -f1 | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$")
 
 for sample in $samples; do
     if [ -f "summary_${sample}.txt" ]; then
         col_ratio=$(grep "Col型" "summary_${sample}.txt" | awk '{print $3}')
         ler_ratio=$(grep "Ler型" "summary_${sample}.txt" | awk '{print $3}')
-        het_ratio=$(grep "杂合" "summary_${sample}.txt" | awk '{print $3}')
-        mut_ratio=$(grep "自发突变" "summary_${sample}.txt" | awk '{print $3}')
+        mut_ratio=$(grep "突变型" "summary_${sample}.txt" | awk '{print $3}')
         
-        echo -e "$sample\t$col_ratio\t$ler_ratio\t$het_ratio\t$mut_ratio" >> sample_ratio_summary.tsv
+        echo -e "$sample\t$col_ratio\t$ler_ratio\t$mut_ratio" >> sample_ratio_summary.tsv
     else
         echo "警告: 样本 $sample 的统计文件不存在，跳过"
     fi
 done
+
 ```
