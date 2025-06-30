@@ -302,11 +302,11 @@ bcftools merge --merge all -l <(
             cut -f 1 |
             parallel -k -j 1 ' [ -f vcf/{}.vcf.gz ] && echo "vcf/{}.vcf.gz" '
     ) \
-    > Osat_cross.vcf
+    > Atha_cross.vcf
 
 rm -fr vcf
 ```
-## analysis
+## stat analysis
 ```
 mkdir -p analysis
 cd analysis
@@ -581,4 +581,45 @@ for sample in $samples; do
     fi
 done
 
+```
+## rdp4 analysis
+```
+bcftools consensus -f c44/1_genome/genome.fa c/44/3_gatk/R.filtered.vcf.gz > c44_chrC.fa
+
+
+cat opts.tsv | cut -f 1 > sample_list
+
+output_dir="consensus_fasta"
+mkdir -p ${output_dir}
+
+for sample in $(cat sample_list); do
+    echo "[INFO] Processing $sample..."
+
+    bgzip -f "${sample}/3_gatk/R.filtered.vcf"
+    vcf="${sample}/3_gatk/R.filtered.vcf.gz"
+    faops filter -l 0 ${sample}/1_genome/genome.fa stdout | grep -A 1 '^>Pt' | faops one -l 0 ${sample}/1_genome/genome.fa Pt ${sample}/1_genome/Pt.fa
+    ref="${sample}/1_genome/Pt.fa"
+    out="consensus_fasta/${sample}_chrC.fa"
+
+    if [[ -f "$vcf" && -f "$ref" ]]; then
+        bcftools index -f "$vcf"
+
+        # 过滤出只有 Pt 染色体的VCF
+        bcftools view \
+            --apply-filters PASS \
+            --max-alleles 2 \
+            --targets Pt \
+            --include "AF>0.01" \
+            -Oz -o "${sample}/3_gatk/R.filtered.Pt.vcf.gz" "$vcf"
+        bcftools index -f "${sample}/3_gatk/R.filtered.Pt.vcf.gz"
+
+        bcftools consensus -f "$ref" "${sample}/3_gatk/R.filtered.Pt.vcf.gz" > "$out"
+        echo "[OK] Wrote $out"
+    else
+        echo "[WARN] Missing files for $sample"
+    fi
+done
+
+cat consensus_fasta/*_chrC.fa > all_samples_raw.fasta
+mafft --auto all_samples_raw.fasta > all_samples_aligned.fasta
 ```
