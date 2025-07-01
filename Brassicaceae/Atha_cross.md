@@ -613,7 +613,7 @@ for sample in $(cat sample_list); do
             -Oz -o "${sample}/3_gatk/R.filtered.Pt.vcf.gz" "$vcf"
         bcftools index -f "${sample}/3_gatk/R.filtered.Pt.vcf.gz"
 
-        bcftools consensus -f "$ref" "${sample}/3_gatk/R.filtered.Pt.vcf.gz" > "$out"
+        bcftools consensus -f "$ref" "${sample}/3_gatk/R.filtered.Pt.vcf.gz" | sed "s/^>Pt/>${sample}/" > "$out"
         echo "[OK] Wrote $out"
     else
         echo "[WARN] Missing files for $sample"
@@ -622,4 +622,5 @@ done
 
 cat consensus_fasta/*_chrC.fa > all_samples_raw.fasta
 mafft --auto all_samples_raw.fasta > all_samples_aligned.fasta
+#bsub -q mpi -n 24 -J maf 'mafft --auto --thread 24 all_samples_raw.fasta > all_samples_aligned.fasta'
 ```
