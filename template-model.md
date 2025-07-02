@@ -182,11 +182,15 @@ AG -> GC -> CT -> TG
         * 杂合性（heterozygosity）<br>
         * 重复序列（repeats）<br>
     * 如果不解决：组装就会分裂出很多碎片；会误把错误或杂合区当成不同的 contig
+    * 解决策略 <br>
+        * 错误修正 → 剪掉低频路径<br>
+        * 杂合保留 → 两条都保留成 phased contig<br>
+        * 重复解析 → 有时保留分支<br>
 * unitig:
     * 定义：
     > 在 De Bruijn 图里，没有分支的、可唯一延伸的路径段。
 
-    * `anchr基于unitig进行组装`
+    * `anchr基于unitig进行组装` → anchr 会平滑掉杂合位点，默认输出最可能的共识序列。
 
 ## *Escherichia coli* str. K-12 substr. MG1655
 > mg1655:野生型菌株，具备完整的野生型基因背景<br>
