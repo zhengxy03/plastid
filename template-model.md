@@ -175,15 +175,17 @@ AG -> GC -> CT -> TG
 * bubble（泡）
     * 定义
 > Bubble（泡） 是在 De Bruijn 图里，一对节点之间存在两条或多条并行、可替代的路径。必须被组装器识别和正确处理
-    * 主要成因有：
-        ⭐ 测序错误 <br>
-        ⭐ 真正的变异（SNP、小Indel）<br>
-        ⭐ 杂合性（heterozygosity）<br>
-        ⭐ 重复序列（repeats）<br>
+
+    * 主要成因有：<br>
+        * 测序错误 <br>
+        * 真正的变异（SNP、小Indel）<br>
+        * 杂合性（heterozygosity）<br>
+        * 重复序列（repeats）<br>
     * 如果不解决：组装就会分裂出很多碎片；会误把错误或杂合区当成不同的 contig
 * unitig:
     * 定义：
     > 在 De Bruijn 图里，没有分支的、可唯一延伸的路径段。
+
     * `anchr基于unitig进行组装`
 
 ## *Escherichia coli* str. K-12 substr. MG1655
