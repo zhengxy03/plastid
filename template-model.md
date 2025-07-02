@@ -174,7 +174,7 @@ AG -> GC -> CT -> TG
 ![De Brujin graph](./pic/de%20Brujin%20graph.jpg "De Brujin graph")
 * bubble（泡）
     * 定义
-> Bubble（泡） 是在 De Bruijn 图里，一对节点之间存在两条或多条并行、可替代的路径。必须被组装器识别和正确处理
+    > Bubble（泡） 是在 De Bruijn 图里，一对节点之间存在两条或多条并行、可替代的路径。必须被组装器识别和正确处理<br>
 
     * 主要成因有：<br>
         * 测序错误 <br>
