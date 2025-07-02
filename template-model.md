@@ -155,6 +155,7 @@ bash 0_script/0_master.sh
 * 采样组装
 
 > kunitigs、  tadpole 的组装以及其他组装方法包括基因组组装软件 SPAdes、Megahit、Platanus、SPAdesMR、MegahitMRM(组装基于`De Bruijn`图从头组装)<br>
+
 | 软件/方法             | 主要场景           | 特点和优势                     | 适用对象          |
 | ----------------- | -------------- | ------------------------- | ------------- |
 | **anchr-kunitig** | 短读自带的小型DBG拼接   | 超轻量，单段无分支路径，易并行           | 小基因组段，预处理阶段   |
