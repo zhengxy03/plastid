@@ -150,6 +150,41 @@ bash 0_script/1_repetitive.sh
 
 bash 0_script/0_master.sh
 ```
+具体过程：
+* 质控
+* 采样组装
+> kunitigs、  tadpole 的组装以及其他组装方法包括基因组组装软件 SPAdes、Megahit、Platanus、SPAdesMR、MegahitMRM(组装基于`De Bruijn`图从头组装)<br>
+
+`De Bruijn`图:
+* 定义：
+是一种有向图（directed graph），常用来表示所有长度为 k 的序列（k-mer）之间的重叠关系。
+    * 节点是长度 k-1 的所有子串
+    * 边是这些 k-mers 的滑动窗口连接
+    * 在图上找路径 → 得到 contig/scaffold → 组装出完整基因组
+* 例子：
+```
+AGC -> GC
+GCT -> CT
+CTG -> TG
+```
+连接成：
+```
+AG -> GC -> CT -> TG
+```
+![De Brujin graph](./pic/de%20Brujin%20graph.jpg "De Brujin graph")
+* bubble（泡）
+    * 定义
+> Bubble（泡） 是在 De Bruijn 图里，一对节点之间存在两条或多条并行、可替代的路径。必须被组装器识别和正确处理
+    * 主要成因有：
+        ⭐ 测序错误 <br>
+        ⭐ 真正的变异（SNP、小Indel）<br>
+        ⭐ 杂合性（heterozygosity）<br>
+        ⭐ 重复序列（repeats）<br>
+    * 如果不解决：组装就会分裂出很多碎片；会误把错误或杂合区当成不同的 contig
+* unitig:
+    * 定义：
+    > 在 De Bruijn 图里，没有分支的、可唯一延伸的路径段。
+    * `anchr基于unitig进行组装`
 
 ## *Escherichia coli* str. K-12 substr. MG1655
 > mg1655:野生型菌株，具备完整的野生型基因背景<br>
