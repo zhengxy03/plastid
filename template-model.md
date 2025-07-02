@@ -153,7 +153,17 @@ bash 0_script/0_master.sh
 具体过程：
 * 质控
 * 采样组装
+
 > kunitigs、  tadpole 的组装以及其他组装方法包括基因组组装软件 SPAdes、Megahit、Platanus、SPAdesMR、MegahitMRM(组装基于`De Bruijn`图从头组装)<br>
+| 软件/方法             | 主要场景           | 特点和优势                     | 适用对象          |
+| ----------------- | -------------- | ------------------------- | ------------- |
+| **anchr-kunitig** | 短读自带的小型DBG拼接   | 超轻量，单段无分支路径，易并行           | 小基因组段，预处理阶段   |
+| **anchr-tadpole** | 采样后小段拼接        | 用BBMap工具tadpole做短的局部DBG拼接 | 单端或子采样，避免错误拼接 |
+| **SPAdes**        | 标准基因组组装        | 多k迭代DBG，错误校正好             | 真核小基因组、细菌     |
+| **Megahit**       | 巨大或复杂数据集       | 超快，多k，低内存                 | 巨大宏基因组、短读汇总   |
+| **Platanus**      | 杂合真核基因组        | 对heterozygosity有优化        | 二倍体/多倍体植物     |
+| **SPAdesMR**      | 代谢组/宏基因组       | SPAdes的metagenome模式       | 宏基因组          |
+| **MegahitMRM**    | Megahit的Meta模式 | 超大宏基因组样本                  | 环境样本、复杂群落     |
 
 `De Bruijn`图:
 * 定义：
