@@ -164,7 +164,7 @@ cat opts.tsv |
         "
     '
 ```
-## 
+## calculate the proportion of sources for variant sites
 * find parents' GT difference
 ```
 mkdir -p analysis
@@ -240,7 +240,7 @@ bcftools view -R <(cut -f1,2 informative_sites.tsv) ../Atha_cross.vcf.gz -Oz -o 
 bcftools index F2_informative.vcf.gz
 bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_informative.vcf.gz > F2_GT_matrix.tsv
 ```
-* 推断变异来源
+* calculate the proportion
 ```
 awk -v OFS='\t' '
     BEGIN {
