@@ -1,0 +1,21 @@
+Assembly	merge_bcalm	merge_bifrost	merge_superreads	merge_tadpole	merge_mr_bcalm	merge_mr_bifrost	merge_mr_superreads	merge_mr_tadpole	merge_anchors	spades	mr_spades	megahit	mr_megahit	repetitive
+# misassemblies	0	0	0	0	0	0	0	0	0	1	1	0	1	0
+  # contig misassemblies	0	0	0	0	0	0	0	0	0	1	1	0	1	0
+    # c. relocations	0	0	0	0	0	0	0	0	0	1	1	0	1	0
+    # c. translocations	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+    # c. inversions	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+  # scaffold misassemblies	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+    # s. relocations	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+    # s. translocations	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+    # s. inversions	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+# misassembled contigs	0	0	0	0	0	0	0	0	0	1	1	0	1	0
+Misassembled contigs length	0	0	0	0	0	0	0	0	0	163847	119934	0	220483	0
+# local misassemblies	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+# scaffold gap ext. mis.	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+# scaffold gap loc. mis.	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+# unaligned mis. contigs	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+# mismatches	409	391	400	418	381	379	376	409	411	1230	1433	557	1692	0
+# indels	104	96	96	106	96	92	92	102	106	362	434	160	506	0
+    # indels (<= 5 bp)	97	89	88	99	89	85	85	95	99	335	408	148	466	0
+    # indels (> 5 bp)	7	7	8	7	7	7	7	7	7	27	26	12	40	0
+Indels length	259	249	260	265	249	239	239	255	265	1496	1069	605	1659	0

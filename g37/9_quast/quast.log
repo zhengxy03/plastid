@@ -1,0 +1,334 @@
+/home/linuxbrew/.linuxbrew/lib/python3.9/site-packages/quast-5.3.0-py3.9.egg/EGG-INFO/scripts/quast.py --threads 8 --min-contig 100 -R 1_genome/genome.fa 7_merge_unitigs_bcalm/anchor.merge.fasta 7_merge_unitigs_bifrost/anchor.merge.fasta 7_merge_unitigs_superreads/anchor.merge.fasta 7_merge_unitigs_tadpole/anchor.merge.fasta 7_merge_mr_unitigs_bcalm/anchor.merge.fasta 7_merge_mr_unitigs_bifrost/anchor.merge.fasta 7_merge_mr_unitigs_superreads/anchor.merge.fasta 7_merge_mr_unitigs_tadpole/anchor.merge.fasta 7_merge_anchors/anchor.merge.fasta 8_spades/spades.non-contained.fasta 8_mr_spades/spades.non-contained.fasta 8_megahit/megahit.non-contained.fasta 8_mr_megahit/megahit.non-contained.fasta 1_genome/repetitive/repetitive.fa --label merge_bcalm,merge_bifrost,merge_superreads,merge_tadpole,merge_mr_bcalm,merge_mr_bifrost,merge_mr_superreads,merge_mr_tadpole,merge_anchors,spades,mr_spades,megahit,mr_megahit,repetitive -o 9_quast
+
+Version: 5.3.0
+
+System information:
+  OS: Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.35 (linux_64)
+  Python version: 3.9.21
+  CPUs number: 12
+
+Started: 2025-07-01 22:41:17
+
+Logging to /home/zxy0303/project/anchr/g37/9_quast/quast.log
+
+CWD: /home/zxy0303/project/anchr/g37
+Main parameters: 
+  MODE: default, threads: 8, min contig length: 100, min alignment length: 65, min alignment IDY: 95.0, \
+  ambiguity: one, min local misassembly length: 200, min extensive misassembly length: 1000
+
+Reference:
+  /home/zxy0303/project/anchr/g37/1_genome/genome.fa ==> genome
+
+Contigs:
+  Pre-processing...
+  1  7_merge_unitigs_bcalm/anchor.merge.fasta ==> merge_bcalm
+  2  7_merge_unitigs_bifrost/anchor.merge.fasta ==> merge_bifrost
+  3  7_merge_unitigs_superreads/anchor.merge.fasta ==> merge_superreads
+  4  7_merge_unitigs_tadpole/anchor.merge.fasta ==> merge_tadpole
+  5  7_merge_mr_unitigs_bcalm/anchor.merge.fasta ==> merge_mr_bcalm
+  6  7_merge_mr_unitigs_bifrost/anchor.merge.fasta ==> merge_mr_bifrost
+  7  7_merge_mr_unitigs_superreads/anchor.merge.fasta ==> merge_mr_superreads
+  8  7_merge_mr_unitigs_tadpole/anchor.merge.fasta ==> merge_mr_tadpole
+  9  7_merge_anchors/anchor.merge.fasta ==> merge_anchors
+  10 8_spades/spades.non-contained.fasta ==> spades
+  11 8_mr_spades/spades.non-contained.fasta ==> mr_spades
+  12 8_megahit/megahit.non-contained.fasta ==> megahit
+  13 8_mr_megahit/megahit.non-contained.fasta ==> mr_megahit
+  14 1_genome/repetitive/repetitive.fa ==> repetitive
+
+2025-07-01 22:41:17
+Running Basic statistics processor...
+  Reference genome:
+    genome.fa, length = 580076, num fragments = 1, GC % = 31.69
+  Contig files: 
+    1  merge_bcalm
+    2  merge_bifrost
+    3  merge_superreads
+    4  merge_tadpole
+    5  merge_mr_bcalm
+    6  merge_mr_bifrost
+    7  merge_mr_superreads
+    8  merge_mr_tadpole
+    9  merge_anchors
+    10 spades
+    11 mr_spades
+    12 megahit
+    13 mr_megahit
+    14 repetitive
+  Calculating N50 and L50...
+    1  merge_bcalm, N50 = 55025, L50 = 3, auN = 86889.8, Total length = 562331, GC % = 31.42, # N's per 100 kbp =  0.00
+    2  merge_bifrost, N50 = 55022, L50 = 3, auN = 87762.7, Total length = 562444, GC % = 31.42, # N's per 100 kbp =  0.00
+    3  merge_superreads, N50 = 30331, L50 = 8, auN = 32032.5, Total length = 565623, GC % = 31.41, # N's per 100 kbp =  0.00
+    4  merge_tadpole, N50 = 55021, L50 = 3, auN = 86856.7, Total length = 562558, GC % = 31.43, # N's per 100 kbp =  0.00
+    5  merge_mr_bcalm, N50 = 55055, L50 = 3, auN = 86921.9, Total length = 562001, GC % = 31.42, # N's per 100 kbp =  0.00
+    6  merge_mr_bifrost, N50 = 41117, L50 = 5, auN = 45428.7, Total length = 562146, GC % = 31.41, # N's per 100 kbp =  0.00
+    7  merge_mr_superreads, N50 = 39461, L50 = 5, auN = 43161.2, Total length = 560942, GC % = 31.42, # N's per 100 kbp =  0.00
+    8  merge_mr_tadpole, N50 = 48835, L50 = 4, auN = 64191.7, Total length = 562076, GC % = 31.42, # N's per 100 kbp =  0.00
+    9  merge_anchors, N50 = 55019, L50 = 3, auN = 87797.3, Total length = 562572, GC % = 31.43, # N's per 100 kbp =  0.00
+    10 spades, N50 = 163847, L50 = 2, auN = 157372.3, Total length = 572804, GC % = 31.58, # N's per 100 kbp =  0.00
+    11 mr_spades, N50 = 395878, L50 = 1, auN = 302314.1, Total length = 577948, GC % = 31.66, # N's per 100 kbp =  0.00
+    12 megahit, N50 = 42296, L50 = 4, auN = 69999.8, Total length = 564643, GC % = 31.47, # N's per 100 kbp =  0.00
+    13 mr_megahit, N50 = 319091, L50 = 1, auN = 261189.0, Total length = 581605, GC % = 31.71, # N's per 100 kbp =  0.00
+    14 repetitive, N50 = 184, L50 = 15, auN = 195.6, Total length = 6905, GC % = 39.23, # N's per 100 kbp =  0.00
+  Drawing Nx plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/Nx_plot.pdf
+  Drawing NGx plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/NGx_plot.pdf
+  Drawing cumulative plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/cumulative_plot.pdf
+  Drawing GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/GC_content_plot.pdf
+  Drawing merge_bcalm GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_bcalm_GC_content_plot.pdf
+  Drawing merge_bifrost GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_bifrost_GC_content_plot.pdf
+  Drawing merge_superreads GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_superreads_GC_content_plot.pdf
+  Drawing merge_tadpole GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_tadpole_GC_content_plot.pdf
+  Drawing merge_mr_bcalm GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_mr_bcalm_GC_content_plot.pdf
+  Drawing merge_mr_bifrost GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_mr_bifrost_GC_content_plot.pdf
+  Drawing merge_mr_superreads GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_mr_superreads_GC_content_plot.pdf
+  Drawing merge_mr_tadpole GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_mr_tadpole_GC_content_plot.pdf
+  Drawing merge_anchors GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/merge_anchors_GC_content_plot.pdf
+  Drawing spades GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/spades_GC_content_plot.pdf
+  Drawing mr_spades GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/mr_spades_GC_content_plot.pdf
+  Drawing megahit GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/megahit_GC_content_plot.pdf
+  Drawing mr_megahit GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/mr_megahit_GC_content_plot.pdf
+  Drawing repetitive GC content plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/basic_stats/repetitive_GC_content_plot.pdf
+Done.
+
+2025-07-01 22:41:20
+Running Contig analyzer...
+  1  merge_bcalm
+  2  merge_bifrost
+  1  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_bcalm.stdout and contigs_report_merge_bcalm.stderr...
+  1  Aligning contigs to the reference
+  2  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_bifrost.stdout and contigs_report_merge_bifrost.stderr...
+  2  Aligning contigs to the reference
+  3  merge_superreads
+  3  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_superreads.stdout and contigs_report_merge_superreads.stderr...
+  4  merge_tadpole
+  3  Aligning contigs to the reference
+  5  merge_mr_bcalm
+  4  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_tadpole.stdout and contigs_report_merge_tadpole.stderr...
+  6  merge_mr_bifrost
+  4  Aligning contigs to the reference
+  5  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_mr_bcalm.stdout and contigs_report_merge_mr_bcalm.stderr...
+  7  merge_mr_superreads
+  5  Aligning contigs to the reference
+  6  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_mr_bifrost.stdout and contigs_report_merge_mr_bifrost.stderr...
+  8  merge_mr_tadpole
+  6  Aligning contigs to the reference
+  7  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_mr_superreads.stdout and contigs_report_merge_mr_superreads.stderr...
+  8  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_mr_tadpole.stdout and contigs_report_merge_mr_tadpole.stderr...
+  7  Aligning contigs to the reference
+  8  Aligning contigs to the reference
+  3  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_superreads.fasta > 9_quast/contigs_reports/minimap_output/merge_superreads.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_superreads.stderr
+  4  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_tadpole.fasta > 9_quast/contigs_reports/minimap_output/merge_tadpole.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_tadpole.stderr
+  2  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_bifrost.fasta > 9_quast/contigs_reports/minimap_output/merge_bifrost.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_bifrost.stderr
+  1  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_bcalm.fasta > 9_quast/contigs_reports/minimap_output/merge_bcalm.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_bcalm.stderr
+  5  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_mr_bcalm.fasta > 9_quast/contigs_reports/minimap_output/merge_mr_bcalm.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_mr_bcalm.stderr
+  6  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_mr_bifrost.fasta > 9_quast/contigs_reports/minimap_output/merge_mr_bifrost.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_mr_bifrost.stderr
+  8  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_mr_tadpole.fasta > 9_quast/contigs_reports/minimap_output/merge_mr_tadpole.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_mr_tadpole.stderr
+  7  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_mr_superreads.fasta > 9_quast/contigs_reports/minimap_output/merge_mr_superreads.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_mr_superreads.stderr
+  3  Analysis is finished.
+
+  9  merge_anchors
+  9  Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_merge_anchors.stdout and contigs_report_merge_anchors.stderr...
+  9  Aligning contigs to the reference
+  9  /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/merge_anchors.fasta > 9_quast/contigs_reports/minimap_output/merge_anchors.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_merge_anchors.stderr
+  4  Analysis is finished.
+
+  10 spades
+  10 Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_spades.stdout and contigs_report_spades.stderr...
+  10 Aligning contigs to the reference
+  1  Analysis is finished.
+
+  11 mr_spades
+  11 Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_mr_spades.stdout and contigs_report_mr_spades.stderr...
+  11 Aligning contigs to the reference
+  6  Analysis is finished.
+
+  12 megahit
+  12 Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_megahit.stdout and contigs_report_megahit.stderr...
+  12 Aligning contigs to the reference
+  10 /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/spades.fasta > 9_quast/contigs_reports/minimap_output/spades.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_spades.stderr
+  11 /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/mr_spades.fasta > 9_quast/contigs_reports/minimap_output/mr_spades.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_mr_spades.stderr
+  8  Analysis is finished.
+
+  13 mr_megahit
+  13 Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_mr_megahit.stdout and contigs_report_mr_megahit.stderr...
+  13 Aligning contigs to the reference
+  12 /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/megahit.fasta > 9_quast/contigs_reports/minimap_output/megahit.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_megahit.stderr
+  13 /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/mr_megahit.fasta > 9_quast/contigs_reports/minimap_output/mr_megahit.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_mr_megahit.stderr
+  7  Analysis is finished.
+
+  14 repetitive
+  14 Logging to files /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/contigs_report_repetitive.stdout and contigs_report_repetitive.stderr...
+  14 Aligning contigs to the reference
+  5  Analysis is finished.
+
+  14 /home/zxy0303/bin/minimap2 -c -x asm10 -B5 -O4,16 --no-long-join -r 200 -N 50 \
+     -s 65 -z 200 --mask-level 0.9 --min-occ 200 -g 2500 --score-N 2 --cs -t 1 9_quast/quast_corrected_input/genome.fa \
+     9_quast/quast_corrected_input/repetitive.fa > 9_quast/contigs_reports/minimap_output/repetitive.coords_tmp \
+     2>> 9_quast/contigs_reports/contigs_report_repetitive.stderr
+  2  Analysis is finished.
+
+  14 Analysis is finished.
+
+  9  Analysis is finished.
+
+  12 Analysis is finished.
+
+  10 Analysis is finished.
+
+  11 Analysis is finished.
+
+  13 Analysis is finished.
+
+  Creating total report...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/misassemblies_report.txt, misassemblies_report.tsv, and misassemblies_report.tex
+  Transposed version of total report...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/transposed_report_misassemblies.txt, transposed_report_misassemblies.tsv, and transposed_report_misassemblies.tex
+  Creating total report...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/unaligned_report.txt, unaligned_report.tsv, and unaligned_report.tex
+  Drawing misassemblies by types plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/misassemblies_plot.pdf
+  Drawing misassemblies FRCurve plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/misassemblies_frcurve_plot.pdf
+Done.
+
+2025-07-01 22:41:21
+Running NA-NGA calculation...
+  1  merge_bcalm, Largest alignment = 179639, NA50 = 54988, NGA50 = 54988, LA50 = 3, LGA50 = 3
+  2  merge_bifrost, Largest alignment = 179620, NA50 = 55022, NGA50 = 55022, LA50 = 3, LGA50 = 3
+  3  merge_superreads, Largest alignment = 55020, NA50 = 30291, NGA50 = 30291, LA50 = 8, LGA50 = 8
+  4  merge_tadpole, Largest alignment = 179621, NA50 = 54987, NGA50 = 54987, LA50 = 3, LGA50 = 3
+  5  merge_mr_bcalm, Largest alignment = 179650, NA50 = 55010, NGA50 = 55010, LA50 = 3, LGA50 = 3
+  6  merge_mr_bifrost, Largest alignment = 79712, NA50 = 41117, NGA50 = 41117, LA50 = 5, LGA50 = 5
+  7  merge_mr_superreads, Largest alignment = 79687, NA50 = 39405, NGA50 = 37637, LA50 = 5, LGA50 = 6
+  8  merge_mr_tadpole, Largest alignment = 130816, NA50 = 48814, NGA50 = 48814, LA50 = 4, LGA50 = 4
+  9  merge_anchors, Largest alignment = 179680, NA50 = 55016, NGA50 = 55016, LA50 = 3, LGA50 = 3
+  10 spades, Largest alignment = 236176, NA50 = 83749, NGA50 = 83749, LA50 = 2, LGA50 = 2
+  11 mr_spades, Largest alignment = 395873, NA50 = 395873, NGA50 = 395873, LA50 = 1, LGA50 = 1
+  12 megahit, Largest alignment = 139169, NA50 = 42296, NGA50 = 42296, LA50 = 4, LGA50 = 4
+  13 mr_megahit, Largest alignment = 319091, NA50 = 319091, NGA50 = 319091, LA50 = 1, LGA50 = 1
+  14 repetitive, Largest alignment = 365, NA50 = 184, LA50 = 15
+  Drawing cumulative plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/aligned_stats/cumulative_plot.pdf
+  Drawing NAx plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/aligned_stats/NAx_plot.pdf
+  Drawing NGAx plot...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/aligned_stats/NGAx_plot.pdf
+Done.
+
+2025-07-01 22:41:22
+Running Genome analyzer...
+  NOTICE: No file with genomic features were provided. Use the --features option if you want to specify it.
+
+  NOTICE: No file with operons were provided. Use the -O option if you want to specify it.
+  1  merge_bcalm
+  2  merge_bifrost
+  3  merge_superreads
+  4  merge_tadpole
+  5  merge_mr_bcalm
+  6  merge_mr_bifrost
+  7  merge_mr_superreads
+  8  merge_mr_tadpole
+  2  Analysis is finished.
+  9  merge_anchors
+  3  Analysis is finished.
+  10 spades
+  4  Analysis is finished.
+  11 mr_spades
+  1  Analysis is finished.
+  5  Analysis is finished.
+  12 megahit
+  13 mr_megahit
+  8  Analysis is finished.
+  14 repetitive
+  7  Analysis is finished.
+  6  Analysis is finished.
+  9  Analysis is finished.
+  13 Analysis is finished.
+  14 Analysis is finished.
+  11 Analysis is finished.
+  10 Analysis is finished.
+  12 Analysis is finished.
+  Drawing Genome fraction, % histogram...
+    saved to /home/zxy0303/project/anchr/g37/9_quast/genome_stats/genome_fraction_histogram.pdf
+Done.
+
+NOTICE: Genes are not predicted by default. Use --gene-finding or --glimmer option to enable it.
+
+2025-07-01 22:41:23
+Creating large visual summaries...
+This may take a while: press Ctrl-C to skip this step..
+  1 of 2: Creating PDF with all tables and plots...
+  2 of 2: Creating Icarus viewers...
+Done
+
+2025-07-01 22:41:26
+RESULTS:
+  Text versions of total report are saved to /home/zxy0303/project/anchr/g37/9_quast/report.txt, report.tsv, and report.tex
+  Text versions of transposed total report are saved to /home/zxy0303/project/anchr/g37/9_quast/transposed_report.txt, transposed_report.tsv, and transposed_report.tex
+  HTML version (interactive tables and plots) is saved to /home/zxy0303/project/anchr/g37/9_quast/report.html
+  PDF version (tables and plots) is saved to /home/zxy0303/project/anchr/g37/9_quast/report.pdf
+  Icarus (contig browser) is saved to /home/zxy0303/project/anchr/g37/9_quast/icarus.html
+  Log is saved to /home/zxy0303/project/anchr/g37/9_quast/quast.log
+
+Finished: 2025-07-01 22:41:26
+Elapsed time: 0:00:09.264994
+NOTICEs: 3; WARNINGs: 0; non-fatal ERRORs: 0
+
+Thank you for using QUAST!

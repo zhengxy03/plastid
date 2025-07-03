@@ -1,0 +1,8 @@
+All statistics are based on contigs of size >= 100 bp, unless otherwise noted (e.g., "# contigs (>= 0 bp)" and "Total length (>= 0 bp)" include all contigs).
+
+Assembly                       merge_bcalm  merge_bifrost  merge_superreads  merge_tadpole  merge_mr_bcalm  merge_mr_bifrost  merge_mr_superreads  merge_mr_tadpole  merge_anchors  spades  mr_spades  megahit  mr_megahit  repetitive
+# fully unaligned contigs      0            0              0                 0              0               0                 0                    0                 0              0       1          0        1           0         
+Fully unaligned length         0            0              0                 0              0               0                 0                    0                 0              0       2018       0        1267        0         
+# partially unaligned contigs  0            0              0                 0              0               0                 0                    0                 0              1       0          0        0           0         
+Partially unaligned length     0            0              0                 0              0               0                 0                    0                 0              680     0          0        0           0         
+# N's                          0            0              0                 0              0               0                 0                    0                 0              0       0          0        0           0         

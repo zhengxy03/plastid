@@ -1,0 +1,18 @@
+S1	E1	S2	E2	Reference	Contig	IDY	Ambiguous	Best_group
+CONTIG	infile_0_1_0_1267	1267	unaligned
+86560	86798	1	238	1	infile_0_2_0_1137	97.49		True
+indel: indel (> 5bp)
+86860	87693	239	1072	1	infile_0_2_0_1137	99.76		True
+CONTIG	infile_0_2_0_1137	1137	correct
+213417	214669	1253	1	1	infile_0_3_0_1253	99.04		True
+CONTIG	infile_0_3_0_1253	1253	correct
+351130	389481	1	38374	1	infile_0_4_0_38374	99.83		True
+CONTIG	infile_0_4_0_38374	38374	correct
+390421	428366	1	37718	1	infile_0_5_0_220483	98.96		True
+relocation, inconsistency = -259823
+168544	351354	37719	220483	1	infile_0_5_0_220483	98.82		True
+CONTIG	infile_0_5_0_220483	220483	misassembled
+1	168341	168327	1	1	infile_0_6_0_319091	99.66		True
+fake: not a misassembly [linear representation of circular genome]
+429314	580076	319091	168328	1	infile_0_6_0_319091	99.86		True
+CONTIG	infile_0_6_0_319091	319091	correct

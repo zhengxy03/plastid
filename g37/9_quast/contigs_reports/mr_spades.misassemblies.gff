@@ -1,0 +1,2 @@
+##gff-version 3
+infile_0_2_0_119934	QUAST	possible_assembly_error	84786	84787	.	.	.	Name=Extensive misassembly;type=relocation;Note=inconsistency is -119821

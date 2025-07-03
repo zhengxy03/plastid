@@ -1,0 +1,37 @@
+S1	E1	S2	E2	Reference	Contig	IDY	Ambiguous	Best_group
+397769	428326	30554	9	1	infile_0_1_0_30554	99.94		True
+CONTIG	infile_0_1_0_30554	30554	correct
+231142	258183	42	27077	1	infile_0_2_0_27077	99.78		True
+CONTIG	infile_0_2_0_27077	27077	correct
+390708	397606	1	6899	1	infile_0_3_0_6899	100.0		True
+CONTIG	infile_0_3_0_6899	6899	correct
+1	85593	85600	10	1	infile_0_4_0_179630	99.96		True
+fake: not a misassembly [linear representation of circular genome]
+486047	580076	179630	85601	1	infile_0_4_0_179630	99.97		True
+CONTIG	infile_0_4_0_179630	179630	correct
+215454	222189	78	6819	1	infile_0_5_0_6824	99.17		True
+CONTIG	infile_0_5_0_6824	6824	correct
+169677	175086	5411	1	1	infile_0_6_0_5413	99.76		True
+CONTIG	infile_0_6_0_5413	5413	correct
+223980	226147	1	2165	1	infile_0_7_0_2165	95.66		True
+CONTIG	infile_0_7_0_2165	2165	correct
+227446	229496	1	2051	1	infile_0_8_0_2051	99.8		True
+CONTIG	infile_0_8_0_2051	2051	correct
+222527	223887	1408	39	1	infile_0_9_0_1644	99.05		True
+CONTIG	infile_0_9_0_1644	1644	correct
+87352	167206	11	79865	1	infile_0_10_0_79865	99.92		True
+CONTIG	infile_0_10_0_79865	79865	correct
+430533	485521	35	55021	1	infile_0_11_0_55021	99.97		True
+CONTIG	infile_0_11_0_55021	55021	correct
+273480	312868	39401	18	1	infile_0_12_0_39413	99.89		True
+CONTIG	infile_0_12_0_39413	39413	correct
+351660	389289	16	37658	1	infile_0_13_0_37658	99.9		True
+CONTIG	infile_0_13_0_37658	37658	correct
+314783	349286	34520	11	1	infile_0_14_0_34594	99.85		True
+CONTIG	infile_0_14_0_34594	34594	correct
+175232	205576	40	30384	1	infile_0_15_0_30384	99.69		True
+CONTIG	infile_0_15_0_30384	30384	correct
+258352	273432	1	15081	1	infile_0_16_0_15081	99.89		True
+CONTIG	infile_0_16_0_15081	15081	correct
+205524	213802	8285	7	1	infile_0_17_0_8285	99.67		True
+CONTIG	infile_0_17_0_8285	8285	correct

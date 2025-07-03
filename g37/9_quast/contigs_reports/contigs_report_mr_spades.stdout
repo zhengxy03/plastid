@@ -1,0 +1,70 @@
+Aligning contigs to reference...
+	Aligning contigs to the reference
+Filtering alignments...
+Parsing coords...
+Loading reference...
+	Loaded [1]
+	Total Regions: 1
+	Total Region Length: 580076
+Analyzing contigs...
+CONTIG: infile_0_1_0_395878 (395878bp)
+Best alignment score: 228141.7 (LEN: 228576, IDY: 99.81), Total number of alignments: 2
+			Looking for the best set of alignments (out of 2 total alignments)
+			The best set is below. Score: 395053.9, number of alignments: 2, unaligned bases: 5
+		This contig is misassembled.
+			Real Alignment 1: 351491 580076 | 1 228576 | 228586 228576 | 99.81 | 1 infile_0_1_0_395878
+			  Not a misassembly [linear representation of circular genome] between these two alignments
+			Real Alignment 2: 1 167320 | 228577 395873 | 167320 167297 | 99.77 | 1 infile_0_1_0_395878
+
+CONTIG: infile_0_2_0_119934 (119934bp)
+Best alignment score: 84192.5 (LEN: 84786, IDY: 99.30), Total number of alignments: 2
+			Looking for the best set of alignments (out of 2 total alignments)
+			The best set is below. Score: 118457.2, number of alignments: 2, unaligned bases: 40
+		This contig is misassembled.
+			Excluding internal overlap of size 1617 between Alignment 1 and 2: 314264 350985 | 119894 83170 | 36722 36725 --> 314264 349368 | 119894 84787 | 35105 35108
+			Real Alignment 1: 229548 314331 | 84786 1 | 84784 84786 | 99.3 | 1 infile_0_2_0_119934
+			  Extensive misassembly (relocation, inconsistency = -119821) between these two alignments
+			Real Alignment 2: 314264 349368 | 119894 84787 | 35105 35108 | 99.02 | 1 infile_0_2_0_119934
+
+CONTIG: infile_0_3_0_60118 (60118bp)
+Best alignment score: 59073.9 (LEN: 60004, IDY: 98.45), Total number of alignments: 1
+		One align captures most of this contig: 169504 229534 | 60118 115 | 60031 60004 | 98.45 | 1 infile_0_3_0_60118
+
+CONTIG: infile_0_4_0_2018 (2018bp)
+		This contig is unaligned. (2018 bp)
+		Unaligned bases: 2018 (number of Ns: 0)
+
+Analyzing coverage...
+Writing SNPs into /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/minimap_output/mr_spades.used_snps
+
+Analysis is finished!
+Founded SNPs were written into /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/minimap_output/mr_spades.used_snps
+
+Results:
+	Local Misassemblies: 0
+	Misassemblies: 1
+		Relocations: 1
+		Translocations: 0
+		Inversions: 0
+	Scaffold gap extensive misassemblies: 0
+	Scaffold gap local misassemblies: 0
+	Misassembled Contigs: 1
+	Misassembled Contig Bases: 119934
+	Misassemblies Inter-Contig Overlap ("Extra" Aligned Bases): 0
+Unaligned Contigs: 1 + 0 part
+Half Unaligned Contigs with Misassemblies: 0
+Unaligned Bases in Fully and Partially Unaligned Contigs: 2018
+
+Ambiguously Mapped Contigs: 0
+Total Bases in Ambiguously Mapped Contigs: 0
+"Extra" Aligned Bases in Ambiguously Mapped Contigs: 0
+Note that --allow-ambiguity option was set to "one" and only first alignment per each of these contigs was used (there is no "extra" aligned bases).
+
+	Covered Bases in Reference: 575758
+	Raw Aligned Bases in Assembly: 575771
+	Total Aligned Bases in Assembly (with "Extras"): 575771
+
+	SNPs: 1433
+	Insertions: 507
+	Deletions: 562
+

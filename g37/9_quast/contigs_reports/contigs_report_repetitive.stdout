@@ -1,0 +1,298 @@
+Aligning contigs to reference...
+	Aligning contigs to the reference
+Filtering alignments...
+Parsing coords...
+Loading reference...
+	Loaded [1]
+	Total Regions: 1
+	Total Region Length: 580076
+Analyzing contigs...
+CONTIG: 1_86280-86379 (100bp)
+Best alignment score: 100.0 (LEN: 100, IDY: 100.00), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 230141 230230 | 11 100 | 90 90 | 100.0 | 1 1_86280-86379
+			Skipping alignment 313522 313615 | 10 100 | 94 91 | 95.74 | 1 1_86280-86379
+		One align captures most of this contig: 86280 86379 | 1 100 | 100 100 | 100.0 | 1 1_86280-86379
+
+CONTIG: 1_86844-87027 (184bp)
+Best alignment score: 184.0 (LEN: 184, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 86844 87027 | 1 184 | 184 184 | 100.0 | 1 1_86844-87027
+			Skipping alignment 168438 168621 | 1 184 | 184 184 | 99.46 | 1 1_86844-87027
+
+CONTIG: 1_167676-167875 (200bp)
+Best alignment score: 200.0 (LEN: 200, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 214017 214216 | 1 200 | 200 200 | 98.5 | 1 1_167676-167875
+		One align captures most of this contig: 167676 167875 | 1 200 | 200 200 | 100.0 | 1 1_167676-167875
+
+CONTIG: 1_168042-168162 (121bp)
+Best alignment score: 121.0 (LEN: 121, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 224316 224400 | 2 86 | 85 85 | 100.0 | 1 1_168042-168162
+		One align captures most of this contig: 168042 168162 | 1 121 | 121 121 | 100.0 | 1 1_168042-168162
+
+CONTIG: 1_168187-168349 (163bp)
+Best alignment score: 163.0 (LEN: 163, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 168187 168349 | 1 163 | 163 163 | 100.0 | 1 1_168187-168349
+
+CONTIG: 1_168438-168648 (211bp)
+Best alignment score: 211.0 (LEN: 211, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 168438 168648 | 1 211 | 211 211 | 100.0 | 1 1_168438-168648
+
+CONTIG: 1_168748-168870 (123bp)
+Best alignment score: 123.0 (LEN: 123, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 226424 226520 | 27 123 | 97 97 | 100.0 | 1 1_168748-168870
+		One align captures most of this contig: 168748 168870 | 1 123 | 123 123 | 100.0 | 1 1_168748-168870
+
+CONTIG: 1_169150-169275 (126bp)
+Best alignment score: 126.0 (LEN: 126, IDY: 100.00), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 351127 351216 | 1 90 | 90 90 | 100.0 | 1 1_169150-169275
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 169150 169275 | 1 126 | 126 126 | 100.0 | 1 1_169150-169275
+			Skipping alignment 226803 226928 | 1 126 | 126 126 | 99.21 | 1 1_169150-169275
+
+CONTIG: 1_169395-169704 (310bp)
+Best alignment score: 310.0 (LEN: 310, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 169395 169704 | 1 310 | 310 310 | 100.0 | 1 1_169395-169704
+
+CONTIG: 1_214086-214200 (115bp)
+Best alignment score: 115.0 (LEN: 115, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 167755 167859 | 11 115 | 105 105 | 100.0 | 1 1_214086-214200
+		One align captures most of this contig: 214086 214200 | 1 115 | 115 115 | 100.0 | 1 1_214086-214200
+
+CONTIG: 1_214353-214466 (114bp)
+Best alignment score: 114.0 (LEN: 114, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 430383 430460 | 7 84 | 78 78 | 98.72 | 1 1_214353-214466
+		One align captures most of this contig: 214353 214466 | 1 114 | 114 114 | 100.0 | 1 1_214353-214466
+
+CONTIG: 1_214801-214905 (105bp)
+Best alignment score: 105.0 (LEN: 105, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 214801 214905 | 1 105 | 105 105 | 100.0 | 1 1_214801-214905
+			Skipping alignment 226110 226214 | 1 105 | 105 105 | 100.0 | 1 1_214801-214905
+
+CONTIG: 1_215203-215341 (139bp)
+Best alignment score: 139.0 (LEN: 139, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 215203 215341 | 1 139 | 139 139 | 100.0 | 1 1_215203-215341
+
+CONTIG: 1_223901-224236 (336bp)
+Best alignment score: 336.0 (LEN: 336, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 223901 224236 | 1 336 | 336 336 | 100.0 | 1 1_223901-224236
+
+CONTIG: 1_226095-226258 (164bp)
+Best alignment score: 164.0 (LEN: 164, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 226095 226258 | 1 164 | 164 164 | 100.0 | 1 1_226095-226258
+
+CONTIG: 1_226424-226554 (131bp)
+Best alignment score: 131.0 (LEN: 131, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 168774 168900 | 1 127 | 127 127 | 99.21 | 1 1_226424-226554
+		One align captures most of this contig: 226424 226554 | 1 131 | 131 131 | 100.0 | 1 1_226424-226554
+
+CONTIG: 1_226779-226928 (150bp)
+Best alignment score: 150.0 (LEN: 150, IDY: 100.00), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 169126 169275 | 1 150 | 150 150 | 98.67 | 1 1_226779-226928
+			Skipping alignment 428955 429068 | 1 114 | 114 114 | 100.0 | 1 1_226779-226928
+		One align captures most of this contig: 226779 226928 | 1 150 | 150 150 | 100.0 | 1 1_226779-226928
+
+CONTIG: 1_226950-227314 (365bp)
+Best alignment score: 365.0 (LEN: 365, IDY: 100.00), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 351280 351632 | 7 365 | 353 359 | 97.21 | 1 1_226950-227314
+			Skipping alignment 169297 169653 | 1 348 | 357 348 | 96.36 | 1 1_226950-227314
+		One align captures most of this contig: 226950 227314 | 1 365 | 365 365 | 100.0 | 1 1_226950-227314
+
+CONTIG: 1_230285-230399 (115bp)
+Best alignment score: 115.0 (LEN: 115, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 230285 230399 | 1 115 | 115 115 | 100.0 | 1 1_230285-230399
+
+CONTIG: 1_230456-230657 (202bp)
+Best alignment score: 202.0 (LEN: 202, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 350278 350465 | 1 188 | 188 188 | 100.0 | 1 1_230456-230657
+		One align captures most of this contig: 230456 230657 | 1 202 | 202 202 | 100.0 | 1 1_230456-230657
+
+CONTIG: 1_230969-231080 (112bp)
+Best alignment score: 112.0 (LEN: 112, IDY: 100.00), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 314559 314663 | 8 112 | 105 105 | 99.05 | 1 1_230969-231080
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 230969 231080 | 1 112 | 112 112 | 100.0 | 1 1_230969-231080
+			Skipping alignment 215167 215278 | 1 112 | 112 112 | 99.11 | 1 1_230969-231080
+
+CONTIG: 1_273347-273524 (178bp)
+Best alignment score: 178.0 (LEN: 178, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 223892 224054 | 16 178 | 163 163 | 99.39 | 1 1_273347-273524
+		One align captures most of this contig: 273347 273524 | 1 178 | 178 178 | 100.0 | 1 1_273347-273524
+
+CONTIG: 1_312807-312921 (115bp)
+Best alignment score: 115.0 (LEN: 115, IDY: 100.00), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 222158 222258 | 13 113 | 101 101 | 98.02 | 1 1_312807-312921
+			Skipping alignment 213558 213653 | 13 108 | 96 96 | 96.88 | 1 1_312807-312921
+		One align captures most of this contig: 312807 312921 | 1 115 | 115 115 | 100.0 | 1 1_312807-312921
+
+CONTIG: 1_349602-349719 (118bp)
+Best alignment score: 118.0 (LEN: 118, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 229804 229910 | 12 118 | 107 107 | 99.07 | 1 1_349602-349719
+		One align captures most of this contig: 349602 349719 | 1 118 | 118 118 | 100.0 | 1 1_349602-349719
+
+CONTIG: 1_349934-350066 (133bp)
+Best alignment score: 133.0 (LEN: 133, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 349934 350066 | 1 133 | 133 133 | 100.0 | 1 1_349934-350066
+
+CONTIG: 1_350278-350469 (192bp)
+Best alignment score: 192.0 (LEN: 192, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 230456 230643 | 1 188 | 188 188 | 100.0 | 1 1_350278-350469
+		One align captures most of this contig: 350278 350469 | 1 192 | 192 192 | 100.0 | 1 1_350278-350469
+
+CONTIG: 1_350489-350634 (146bp)
+Best alignment score: 146.0 (LEN: 146, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 168520 168663 | 3 146 | 144 144 | 100.0 | 1 1_350489-350634
+		One align captures most of this contig: 350489 350634 | 1 146 | 146 146 | 100.0 | 1 1_350489-350634
+
+CONTIG: 1_350877-350986 (110bp)
+Best alignment score: 110.0 (LEN: 110, IDY: 100.00), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 215245 215350 | 5 110 | 106 106 | 99.06 | 1 1_350877-350986
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 350877 350986 | 1 110 | 110 110 | 100.0 | 1 1_350877-350986
+			Skipping alignment 87309 87418 | 1 110 | 110 110 | 99.09 | 1 1_350877-350986
+
+CONTIG: 1_351109-351244 (136bp)
+Best alignment score: 136.0 (LEN: 136, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 351109 351244 | 1 136 | 136 136 | 100.0 | 1 1_351109-351244
+			Skipping alignment 428961 429096 | 1 136 | 136 136 | 99.26 | 1 1_351109-351244
+
+CONTIG: 1_351280-351390 (111bp)
+Best alignment score: 111.0 (LEN: 111, IDY: 100.00), Total number of alignments: 4
+		This contig has 4 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 226956 227066 | 1 111 | 111 111 | 100.0 | 1 1_351280-351390
+			Skipping alignment 351280 351390 | 1 111 | 111 111 | 100.0 | 1 1_351280-351390
+			Skipping alignment 169303 169413 | 1 111 | 111 111 | 99.1 | 1 1_351280-351390
+			Skipping alignment 429132 429242 | 1 111 | 111 111 | 99.1 | 1 1_351280-351390
+
+CONTIG: 1_351415-351524 (110bp)
+Best alignment score: 110.0 (LEN: 110, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 351415 351524 | 1 110 | 110 110 | 100.0 | 1 1_351415-351524
+			Skipping alignment 429267 429376 | 1 110 | 110 110 | 100.0 | 1 1_351415-351524
+
+CONTIG: 1_389257-389469 (213bp)
+Best alignment score: 213.0 (LEN: 213, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 389257 389469 | 1 213 | 213 213 | 100.0 | 1 1_389257-389469
+			Skipping alignment 390169 390381 | 1 213 | 213 213 | 100.0 | 1 1_389257-389469
+
+CONTIG: 1_389491-389826 (336bp)
+Best alignment score: 336.0 (LEN: 336, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 389491 389826 | 1 336 | 336 336 | 100.0 | 1 1_389491-389826
+			Skipping alignment 390403 390738 | 1 336 | 336 336 | 99.7 | 1 1_389491-389826
+
+CONTIG: 1_390169-390381 (213bp)
+Best alignment score: 213.0 (LEN: 213, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 389257 389469 | 1 213 | 213 213 | 100.0 | 1 1_390169-390381
+			Skipping alignment 390169 390381 | 1 213 | 213 213 | 100.0 | 1 1_390169-390381
+
+CONTIG: 1_390403-390625 (223bp)
+Best alignment score: 223.0 (LEN: 223, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 389491 389713 | 1 223 | 223 223 | 100.0 | 1 1_390403-390625
+			Skipping alignment 390403 390625 | 1 223 | 223 223 | 100.0 | 1 1_390403-390625
+
+CONTIG: 1_390647-390835 (189bp)
+Best alignment score: 189.0 (LEN: 189, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 390647 390835 | 1 189 | 189 189 | 100.0 | 1 1_390647-390835
+
+CONTIG: 1_428913-429086 (174bp)
+Best alignment score: 174.0 (LEN: 174, IDY: 100.00), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 351067 351234 | 7 174 | 168 168 | 98.81 | 1 1_428913-429086
+		One align captures most of this contig: 428913 429086 | 1 174 | 174 174 | 100.0 | 1 1_428913-429086
+
+CONTIG: 1_429150-429381 (232bp)
+Best alignment score: 232.0 (LEN: 232, IDY: 100.00), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 351298 351529 | 1 232 | 232 232 | 98.71 | 1 1_429150-429381
+			Skipping alignment 226974 227211 | 1 232 | 238 232 | 97.48 | 1 1_429150-429381
+		One align captures most of this contig: 429150 429381 | 1 232 | 232 232 | 100.0 | 1 1_429150-429381
+
+CONTIG: 1_429405-429590 (186bp)
+Best alignment score: 186.0 (LEN: 186, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 429405 429590 | 1 186 | 186 186 | 100.0 | 1 1_429405-429590
+
+CONTIG: 1_430045-430145 (101bp)
+Best alignment score: 101.0 (LEN: 101, IDY: 100.00), Total number of alignments: 5
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 167677 167775 | 1 99 | 99 99 | 100.0 | 1 1_430045-430145
+			Skipping alignment 214018 214116 | 1 99 | 99 99 | 96.97 | 1 1_430045-430145
+			Skipping alignment 273410 273500 | 9 99 | 91 91 | 100.0 | 1 1_430045-430145
+			Skipping alignment 223940 224030 | 9 99 | 91 91 | 100.0 | 1 1_430045-430145
+		One align captures most of this contig: 430045 430145 | 1 101 | 101 101 | 100.0 | 1 1_430045-430145
+
+CONTIG: 1_430173-430275 (103bp)
+Best alignment score: 103.0 (LEN: 103, IDY: 100.00), Total number of alignments: 2
+		This contig has 2 significant alignments. [An ambiguously mapped contig]
+		Using only first of these alignment (option --ambiguity-usage is set to "one"):
+			Alignment: 224060 224162 | 1 103 | 103 103 | 100.0 | 1 1_430173-430275
+			Skipping alignment 430173 430275 | 1 103 | 103 103 | 100.0 | 1 1_430173-430275
+
+Analyzing coverage...
+Writing SNPs into /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/minimap_output/repetitive.used_snps
+
+Analysis is finished!
+Founded SNPs were written into /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/minimap_output/repetitive.used_snps
+
+Results:
+	Local Misassemblies: 0
+	Misassemblies: 0
+		Relocations: 0
+		Translocations: 0
+		Inversions: 0
+	Scaffold gap extensive misassemblies: 0
+	Scaffold gap local misassemblies: 0
+	Misassembled Contigs: 0
+	Misassembled Contig Bases: 0
+	Misassemblies Inter-Contig Overlap ("Extra" Aligned Bases): 0
+Unaligned Contigs: 0 + 0 part
+Half Unaligned Contigs with Misassemblies: 0
+Unaligned Bases in Fully and Partially Unaligned Contigs: 0
+
+Ambiguously Mapped Contigs: 13
+Total Bases in Ambiguously Mapped Contigs: 2082
+"Extra" Aligned Bases in Ambiguously Mapped Contigs: 0
+Note that --allow-ambiguity option was set to "one" and only first alignment per each of these contigs was used (there is no "extra" aligned bases).
+
+	Covered Bases in Reference: 6255
+	Raw Aligned Bases in Assembly: 6905
+	Total Aligned Bases in Assembly (with "Extras"): 6905
+
+	SNPs: 0
+	Insertions: 0
+	Deletions: 0
+

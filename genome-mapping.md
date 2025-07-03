@@ -146,6 +146,8 @@ EOF
 gzip -dcf GCF*_genomic.fna.gz |
     faops replace stdin replace.tsv stdout |
     faops order stdin <(for chr in $(seq 1 1 12) Mt Pt; do echo $chr; done) genome.fa
+
+faops size genome.fa > chr.sizes
 ```
 
 * Prunus persica PLov2-2N (a double haploid genotype of the peach cv. Lovell)
@@ -267,6 +269,7 @@ SRRS=(
     'SRR545231::nip'    # Nipponbare
     'SRR063638::nip'
     'SRR1542423::a17'   # A17
+    'SRR1572628::h1706' # Heinz 1706
 )
 FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
 
@@ -302,12 +305,7 @@ rsync -avP \
     wangq@202.119.37.251:data/plastid
 ```
 ```
-cd zxy/plastid
-cp -r ~/data/plastid/ena .
-cp -r ~/data/plastid/genome .
-
 cd evaluation
-
 SRRS=(
     'SRR616966::41'  # Col-0
     'SRR611086::78'
@@ -317,6 +315,7 @@ SRRS=(
     'SRR545231::46'  # Nipponbare
     'SRR063638::15'
     'SRR1542423::23' # A17
+    'SRR1572628::5'  # Heinz 1706
 )
 FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
 
@@ -399,6 +398,7 @@ SRRS=(
     'SRR545231::12'  # Nipponbare
     'SRR063638::12'
     'SRR1542423::8'  # A17
+    'SRR1572628::12' # Heinz 1706
 )
 FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
 
@@ -450,6 +450,7 @@ SRRS=(
     'SRR545231::Nipponbare' # Nipponbare
     'SRR063638::NP'
     'SRR1542423::A17'       # A17
+    'SRR1572628::Heinz1706' # Heinz 1706
 )
 FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
 
@@ -484,6 +485,9 @@ for item in "${SRRS[@]}"; do
 
 done
 ```
+visualize
+```R
+
 ```
 cd evaluation
 

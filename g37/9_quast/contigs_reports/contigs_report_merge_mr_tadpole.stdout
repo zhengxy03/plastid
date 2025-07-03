@@ -1,0 +1,131 @@
+Aligning contigs to reference...
+	Aligning contigs to the reference
+Filtering alignments...
+Parsing coords...
+Loading reference...
+	Loaded [1]
+	Total Regions: 1
+	Total Region Length: 580076
+Analyzing contigs...
+CONTIG: infile_0_1_0_34537 (34537bp)
+Best alignment score: 34451.2 (LEN: 34503, IDY: 99.85), Total number of alignments: 2
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 169020 169136 | 34537 34421 | 117 117 | 99.15 | 1 infile_0_1_0_34537
+		One align captures most of this contig: 314783 349279 | 34503 1 | 34497 34503 | 99.85 | 1 infile_0_1_0_34537
+
+CONTIG: infile_0_2_0_30515 (30515bp)
+Best alignment score: 30496.7 (LEN: 30515, IDY: 99.94), Total number of alignments: 1
+		One align captures most of this contig: 397794 428320 | 30515 1 | 30527 30515 | 99.94 | 1 infile_0_2_0_30515
+
+CONTIG: infile_0_3_0_30312 (30312bp)
+Best alignment score: 30206.1 (LEN: 30300, IDY: 99.69), Total number of alignments: 1
+		One align captures most of this contig: 175232 205531 | 30300 1 | 30300 30300 | 99.69 | 1 infile_0_3_0_30312
+
+CONTIG: infile_0_4_0_6776 (6776bp)
+Best alignment score: 6632.2 (LEN: 6687, IDY: 99.18), Total number of alignments: 2
+			Looking for the best set of alignments (out of 2 total alignments)
+			Skipping redundant alignments after choosing the best set of alignments
+		Skipping redundant alignment 87466 87675 | 31 240 | 210 210 | 95.31 | 1 infile_0_4_0_6776
+			The best set is below. Score: 6632.2, number of alignments: 1, unaligned bases: 89
+		Alignment: 215454 222134 | 90 6776 | 6681 6687 | 99.18 | 1 infile_0_4_0_6776
+
+CONTIG: infile_0_5_0_5359 (5359bp)
+Best alignment score: 5347.7 (LEN: 5359, IDY: 99.79), Total number of alignments: 1
+		One align captures most of this contig: 169738 175095 | 5359 1 | 5358 5359 | 99.79 | 1 infile_0_5_0_5359
+
+CONTIG: infile_0_6_0_2097 (2097bp)
+Best alignment score: 1990.2 (LEN: 2077, IDY: 95.82), Total number of alignments: 1
+		One align captures most of this contig: 224010 226089 | 21 2097 | 2080 2077 | 95.82 | 1 infile_0_6_0_2097
+
+CONTIG: infile_0_7_0_2028 (2028bp)
+Best alignment score: 2023.9 (LEN: 2028, IDY: 99.80), Total number of alignments: 1
+		One align captures most of this contig: 227479 229506 | 1 2028 | 2028 2028 | 99.8 | 1 infile_0_7_0_2028
+
+CONTIG: infile_0_8_0_130816 (130816bp)
+Best alignment score: 93987.8 (LEN: 94016, IDY: 99.97), Total number of alignments: 2
+			Looking for the best set of alignments (out of 2 total alignments)
+			The best set is below. Score: 130776.8, number of alignments: 2, unaligned bases: 0
+		This contig is misassembled.
+			Real Alignment 1: 1 36800 | 36800 1 | 36800 36800 | 99.97 | 1 infile_0_8_0_130816
+			  Not a misassembly [linear representation of circular genome] between these two alignments
+			Real Alignment 2: 486061 580076 | 130816 36801 | 94016 94016 | 99.97 | 1 infile_0_8_0_130816
+
+CONTIG: infile_0_9_0_6879 (6879bp)
+Best alignment score: 6879.0 (LEN: 6879, IDY: 100.00), Total number of alignments: 1
+		One align captures most of this contig: 390708 397586 | 1 6879 | 6879 6879 | 100.0 | 1 infile_0_9_0_6879
+
+CONTIG: infile_0_10_0_1601 (1601bp)
+Best alignment score: 1357.0 (LEN: 1370, IDY: 99.05), Total number of alignments: 1
+			Looking for the best set of alignments (out of 1 total alignments)
+			The best set is below. Score: 1357.0, number of alignments: 1, unaligned bases: 231
+		Alignment: 222527 223887 | 1385 16 | 1361 1370 | 99.05 | 1 infile_0_10_0_1601
+
+CONTIG: infile_0_11_0_79903 (79903bp)
+Best alignment score: 79833.1 (LEN: 79897, IDY: 99.92), Total number of alignments: 1
+		One align captures most of this contig: 87352 167248 | 7 79903 | 79897 79897 | 99.92 | 1 infile_0_11_0_79903
+
+CONTIG: infile_0_12_0_54954 (54954bp)
+Best alignment score: 54937.5 (LEN: 54954, IDY: 99.97), Total number of alignments: 1
+		One align captures most of this contig: 430546 485501 | 54954 1 | 54956 54954 | 99.97 | 1 infile_0_12_0_54954
+
+CONTIG: infile_0_13_0_48835 (48835bp)
+Best alignment score: 48794.5 (LEN: 48814, IDY: 99.96), Total number of alignments: 1
+		One align captures most of this contig: 36795 85611 | 48835 22 | 48817 48814 | 99.96 | 1 infile_0_13_0_48835
+
+CONTIG: infile_0_14_0_39481 (39481bp)
+Best alignment score: 39370.6 (LEN: 39414, IDY: 99.89), Total number of alignments: 3
+		Skipping these alignments as insignificant (option --ambiguity-score is set to "0.99"):
+			Skipping alignment 85550 85656 | 129 23 | 107 107 | 98.13 | 1 infile_0_14_0_39481
+			Skipping alignment 229455 229534 | 96 17 | 80 80 | 97.5 | 1 infile_0_14_0_39481
+		One align captures most of this contig: 273450 312868 | 39481 68 | 39419 39414 | 99.89 | 1 infile_0_14_0_39481
+
+CONTIG: infile_0_15_0_37650 (37650bp)
+Best alignment score: 37603.9 (LEN: 37634, IDY: 99.92), Total number of alignments: 1
+		One align captures most of this contig: 351704 389324 | 17 37650 | 37621 37634 | 99.92 | 1 infile_0_15_0_37650
+
+CONTIG: infile_0_16_0_27055 (27055bp)
+Best alignment score: 26995.5 (LEN: 27055, IDY: 99.78), Total number of alignments: 1
+		One align captures most of this contig: 231161 258221 | 27055 1 | 27061 27055 | 99.78 | 1 infile_0_16_0_27055
+
+CONTIG: infile_0_17_0_15068 (15068bp)
+Best alignment score: 15054.5 (LEN: 15065, IDY: 99.93), Total number of alignments: 1
+		One align captures most of this contig: 258407 273474 | 4 15068 | 15068 15065 | 99.93 | 1 infile_0_17_0_15068
+
+CONTIG: infile_0_18_0_8210 (8210bp)
+Best alignment score: 8159.0 (LEN: 8186, IDY: 99.67), Total number of alignments: 1
+		One align captures most of this contig: 205617 213802 | 8210 25 | 8186 8186 | 99.67 | 1 infile_0_18_0_8210
+
+Analyzing coverage...
+Writing SNPs into /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/minimap_output/merge_mr_tadpole.used_snps
+
+Analysis is finished!
+Founded SNPs were written into /home/zxy0303/project/anchr/g37/9_quast/contigs_reports/minimap_output/merge_mr_tadpole.used_snps
+
+Results:
+	Local Misassemblies: 0
+	Misassemblies: 0
+		Relocations: 0
+		Translocations: 0
+		Inversions: 0
+	Scaffold gap extensive misassemblies: 0
+	Scaffold gap local misassemblies: 0
+	Misassembled Contigs: 0
+	Misassembled Contig Bases: 0
+	Misassemblies Inter-Contig Overlap ("Extra" Aligned Bases): 0
+Unaligned Contigs: 0 + 0 part
+Half Unaligned Contigs with Misassemblies: 0
+Unaligned Bases in Fully and Partially Unaligned Contigs: 0
+
+Ambiguously Mapped Contigs: 0
+Total Bases in Ambiguously Mapped Contigs: 0
+"Extra" Aligned Bases in Ambiguously Mapped Contigs: 0
+Note that --allow-ambiguity option was set to "one" and only first alignment per each of these contigs was used (there is no "extra" aligned bases).
+
+	Covered Bases in Reference: 561521
+	Raw Aligned Bases in Assembly: 561553
+	Total Aligned Bases in Assembly (with "Extras"): 561553
+
+	SNPs: 409
+	Insertions: 128
+	Deletions: 127
+

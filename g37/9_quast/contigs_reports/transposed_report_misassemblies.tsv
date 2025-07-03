@@ -1,0 +1,15 @@
+Assembly	# misassemblies	  # contig misassemblies	    # c. relocations	    # c. translocations	    # c. inversions	  # scaffold misassemblies	    # s. relocations	    # s. translocations	    # s. inversions	# misassembled contigs	Misassembled contigs length	# local misassemblies	# scaffold gap ext. mis.	# scaffold gap loc. mis.	# unaligned mis. contigs	# mismatches	# indels	    # indels (<= 5 bp)	    # indels (> 5 bp)	Indels length
+merge_bcalm	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	409	104	97	7	259
+merge_bifrost	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	391	96	89	7	249
+merge_superreads	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	400	96	88	8	260
+merge_tadpole	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	418	106	99	7	265
+merge_mr_bcalm	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	381	96	89	7	249
+merge_mr_bifrost	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	379	92	85	7	239
+merge_mr_superreads	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	376	92	85	7	239
+merge_mr_tadpole	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	409	102	95	7	255
+merge_anchors	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	411	106	99	7	265
+spades	1	1	1	0	0	0	0	0	0	1	163847	0	0	0	0	1230	362	335	27	1496
+mr_spades	1	1	1	0	0	0	0	0	0	1	119934	0	0	0	0	1433	434	408	26	1069
+megahit	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	557	160	148	12	605
+mr_megahit	1	1	1	0	0	0	0	0	0	1	220483	0	0	0	0	1692	506	466	40	1659
+repetitive	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0

@@ -1,0 +1,27 @@
+reference chromosomes:
+	1 (total length: 580076 bp, total length without N's: 580076 bp, maximal covered length: 577988 bp)
+
+total genome size: 580076
+
+gap min size: 50
+partial gene/operon min size: 100
+
+
+
+assembly                 | genome    | duplication | gaps      | genes     | partial   | operons   | partial   |
+                         | fraction  | ratio       | number    |           | genes     |           | operons   |
+========================================================================================================================
+merge_bcalm              | 96.841    | 1.000       | 16        | -         | -         | -         | -         |
+merge_bifrost            | 96.826    | 1.000       | 15        | -         | -         | -         | -         |
+merge_superreads         | 96.823    | 1.006       | 16        | -         | -         | -         | -         |
+merge_tadpole            | 96.861    | 1.000       | 15        | -         | -         | -         | -         |
+merge_mr_bcalm           | 96.766    | 1.000       | 16        | -         | -         | -         | -         |
+merge_mr_bifrost         | 96.747    | 1.001       | 16        | -         | -         | -         | -         |
+merge_mr_superreads      | 96.618    | 1.000       | 17        | -         | -         | -         | -         |
+merge_mr_tadpole         | 96.801    | 1.000       | 16        | -         | -         | -         | -         |
+merge_anchors            | 96.871    | 1.000       | 16        | -         | -         | -         | -         |
+spades                   | 98.675    | 0.999       | 7         | -         | -         | -         | -         |
+mr_spades                | 99.256    | 1.000       | 2         | -         | -         | -         | -         |
+megahit                  | 97.233    | 1.000       | 12        | -         | -         | -         | -         |
+mr_megahit               | 99.640    | 1.004       | 3         | -         | -         | -         | -         |
+repetitive               | 1.078     | 1.104       | 33        | -         | -         | -         | -         |

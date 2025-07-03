@@ -153,8 +153,10 @@ bash 0_script/0_master.sh
 具体过程：
 * 质控
 * 采样组装
-
 > kunitigs、  tadpole 的组装以及其他组装方法包括基因组组装软件 SPAdes、Megahit、Platanus、SPAdesMR、MegahitMRM(组装基于`De Bruijn`图从头组装)<br>
+
+* 结果评估
+> 使用基因组组装质量评估软件 (QUality ASsessment Tool for Genome  Assemblies, QUAST)进行组装评估，直接看report.html<br>
 
 | 软件/方法             | 主要场景           | 特点和优势                     | 适用对象          |
 | ----------------- | -------------- | ------------------------- | ------------- |
