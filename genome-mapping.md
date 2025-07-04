@@ -577,47 +577,57 @@ big_plot <- wrap_plots(plots_in_order, ncol = 1)
 ggsave("all_samples_combined.png", plot = big_plot, width = 20, height = 6 * length(plots_in_order),limitsize=FALSE)
 ```
 ![evaluation](./pic/all_samples_combined.png "evaluation")
-```
-cd evaluation
 
+# VCF processing
+```
 SRRS=(
-    'SRR616966::Col-0'      # Col-0
-    'SRR611086::Col-0'
-    'SRR5216995::Col-0'
-    'SRR616965::Ler-0'      # Ler-0
-    'SRR611087::Ler-0'
-    'SRR545231::Nipponbare' # Nipponbare
-    'SRR063638::NP'
-    'SRR1542423::A17'       # A17
+    'SRR616966::41'  # Col-0
+    'SRR611086::78'
+    'SRR5216995::121'
+    'SRR616965::42'  # Ler-0
+    'SRR611087::79'
+    'SRR545231::46'  # Nipponbare
+    'SRR063638::15'
+    'SRR1542423::23' # A17
+    'SRR1572628::Heinz1706' # Heinz 1706
 )
 FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
 
 for item in "${SRRS[@]}"; do
     SRR="${item%%::*}"
-    STRAIN="${item##*::}"
+    DEPTH="${item##*::}"
 
     for FOLD in "${FOLDS[@]}"; do
+        CUTOFF=$(bc <<< "(${DEPTH} * ${FOLD}) / 1")
+
+        echo 1>&2 "==> ${item} ${FOLD}"
+
         BASE_NAME=${SRR}_${FOLD}
+        pushd ${BASE_NAME}
 
-        cat ${BASE_NAME}/9_markdown/statReads.md |
-            mdtable2csv |
-            mlr --icsv --otsv cat |
-            grep -v "^Name" |
-            grep -v "^Genome" |
-            tsv-select -f 1,3 |
-            (echo -e "Fold\t${FOLD}" && cat) |
-            datamash transpose
-    done |
-        tsv-uniq \
-        > ${SRR}_reads.tsv
+        if [ ! -f 3_gatk/R.filtered.vcf ]; then
+            rm *.sh
+            anchr template \
+                --genome 1000000 \
+                --parallel 24 \
+                --xmx 80g \
+                \
+                --trim "--dedupe --cutoff ${CUTOFF} --cutk 31" \
+                --qual "25" \
+                --len "60" \
+                --filter "adapter artifact" \
+                \
+                --bwa Q25L60 \
+                --gatk
 
-    echo
-    echo "Table: ${STRAIN} ${SRR} Reads"
-    echo
-    cat ${SRR}_reads.tsv |
-        mlr --itsv --omd cat
-    echo
+            bsub -q mpi -n 24 -J "${BASE_NAME}" "
 
+                bash 0_script/3_gatk.sh
+            "
+        fi
+
+        popd
+    done
 done
 ```
 # Remove intermediate files
