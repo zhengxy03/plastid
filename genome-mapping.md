@@ -493,9 +493,7 @@ library(readr)
 library(patchwork)
 library(stringr)
 
-# --------------------------
-# 指定你的顺序和别名
-# --------------------------
+
 ordered_samples <- c(
   'SRR616966::Col-0',
   'SRR611086::Col-0',
@@ -512,17 +510,11 @@ sample_mapping <- tibble(
   Label = ordered_samples
 )
 
-# --------------------------
-# 样式设定
-# --------------------------
 colors <- c("Nc" = "black", "Pt" = "gray60", "Mt" = "white")
 chrom_order <- c("Nc", "Pt", "Mt")
 bar_width <- 0.4
 dodge_width <- 0.35
 
-# --------------------------
-# 找到目录下所有 .tsv
-# --------------------------
 all_tsv <- list.files(pattern = "_folds\\.tsv$")
 all_sample_plots <- list()
 
@@ -540,8 +532,7 @@ for (srr in sample_mapping$SRR) {
   df_prop <- df %>%
     group_by(Fold) %>%
     mutate(prop = bases / sum(bases))
-  
-  # 左图
+
   p1 <- ggplot(df, aes(x = factor(Fold), y = bases / 1e6, fill = chrom)) +
     geom_bar(stat = "identity", position = position_dodge(width = dodge_width),
               color = "black", width = bar_width) +
@@ -558,8 +549,7 @@ for (srr in sample_mapping$SRR) {
       axis.ticks = element_line(color = "black"),
       plot.title = element_text(hjust = 0.5, size = 14)
     )
-  
-  # 右图
+
   p2 <- ggplot(df_prop, aes(x = factor(Fold), y = prop, fill = chrom)) +
     geom_bar(stat = "identity", position = position_dodge(width = dodge_width),
               color = "black", width = bar_width) +
@@ -577,27 +567,14 @@ for (srr in sample_mapping$SRR) {
       plot.title = element_text(hjust = 0.5, size = 14)
     )
   
-  # 拼接
   row_plot <- (p1 | p2) + plot_layout(guides = "collect")
-  
-  # 保存单个
-  ggsave(paste0(label, "_combined.png"), plot = row_plot, width = 12, height = 6)
-  
+
   all_sample_plots[[label]] <- row_plot
 }
 
-
-# --------------------------
-# 按顺序拼接所有行
-# --------------------------
 plots_in_order <- all_sample_plots[ordered_samples[ordered_samples %in% names(all_sample_plots)]]
-
-if (length(plots_in_order) > 0) {
-  big_plot <- wrap_plots(plots_in_order, ncol = 1)
-  
-  # 最终保存
-  ggsave("all_samples_combined.png", plot = big_plot, width = 20, height = 6 * length(plots_in_order),limitsize=FALSE)
-}
+big_plot <- wrap_plots(plots_in_order, ncol = 1)
+ggsave("all_samples_combined.png", plot = big_plot, width = 20, height = 6 * length(plots_in_order),limitsize=FALSE)
 ```
 ![evaluation](./pic/all_samples_combined.png "evaluation")
 ```
