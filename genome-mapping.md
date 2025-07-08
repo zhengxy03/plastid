@@ -578,7 +578,7 @@ ggsave("all_samples_combined.png", plot = big_plot, width = 20, height = 6 * len
 ```
 ![evaluation](./pic/all_samples_combined.png "evaluation")
 
-
+# col assembly
 ```
 #SRR611086
 cd evaluation
