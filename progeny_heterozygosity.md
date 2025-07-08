@@ -251,17 +251,18 @@ awk -v OFS='\t' '
             col_gt[key] = $5
             ler_gt[key] = $6
         }
-
         count_col = count_ler = count_mut = total = 0
     }
+
     NR==1 {
         header = "CHROM_POS"
         for (i=3; i<=NF; i++) {
-            header = header "\t" "SAMPLE" (i-2)
+            header = header OFS $i
         }
         print header > "classification_matrix.tsv"
         next
     }
+
     {
         key = $1":"$2
         row = key
@@ -272,18 +273,18 @@ awk -v OFS='\t' '
             ler = ler_gt[key]
 
             if (gt == "./.") {
-                row = row "\tNA"
+                row = row OFS "NA"
                 continue
             }
 
             if (gt == col) {
-                row = row "\tCol"
+                row = row OFS "Col"
                 count_col++
             } else if (gt == ler) {
-                row = row "\tLer"
+                row = row OFS "Ler"
                 count_ler++
             } else {
-                row = row "\tMut"
+                row = row OFS "Mut"
                 count_mut++
             }
             total++
@@ -291,6 +292,7 @@ awk -v OFS='\t' '
 
         print row >> "classification_matrix.tsv"
     }
+
     END {
         print "来源分类比例：" > "summary.txt"
         if (total > 0) {
