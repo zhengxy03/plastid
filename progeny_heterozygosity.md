@@ -1,5 +1,5 @@
-# F2 Chloroplast Heterozygosity
-Use Atha_cross(*Arabidopsis thaliana* Columbia X Ler) for example
+# Progeny Chloroplast Heterozygosity
+Use Atha_cross(*Arabidopsis thaliana* Columbia X Ler) as example
 ## Basic info
 * Genome: GCF_000001735.3, TAIR10, 119.668 Mb<br>
 * Chloroplast: NC_000932, Columbia, 154478 bp<br>
