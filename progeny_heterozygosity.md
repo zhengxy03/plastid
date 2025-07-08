@@ -239,6 +239,8 @@ bcftools view -R <(cut -f1,2 informative_sites.tsv) ../Atha_cross.vcf.gz -Oz -o 
 
 bcftools index F2_informative.vcf.gz
 bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_informative.vcf.gz > F2_GT_matrix.tsv
+echo -e "CHROM\tPOS\t$(cat ../opts.tsv | cut -f1 | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | paste -sd '\t' -)" > header.txt
+cat header.txt F2_GT_matrix.tsv > F2_GT_matrix_with_header.tsv
 ```
 * calculate the proportion
 ```
@@ -299,7 +301,7 @@ awk -v OFS='\t' '
             print "无有效基因型参与分类" >> "summary.txt"
         }
     }
-' F2_GT_matrix.tsv
+' F2_GT_matrix_with_header.tsv
 ```
 每个样本分开统计：
 ```
@@ -361,7 +363,7 @@ cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r li
                 print "无有效基因型参与分类" >> "summary_" sample_name ".txt"
             }
         }
-    ' F2_GT_matrix.tsv
+    ' F2_GT_matrix_with_header.tsv
     
     current=$((current + 1))
 done
