@@ -1,2 +1,0 @@
-# VCFs on folds
-## Genomes
