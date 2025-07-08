@@ -584,7 +584,7 @@ done
 ```
 ## rdp4 analysis
 ```
-bcftools consensus -f c44/1_genome/genome.fa c/44/3_gatk/R.filtered.vcf.gz > c44_chrC.fa
+bcftools consensus -f c44/1_genome/genome.fa c44/3_gatk/R.filtered.vcf.gz > c44_chrC.fa
 
 
 cat opts.tsv | cut -f 1 > sample_list

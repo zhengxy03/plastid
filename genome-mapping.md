@@ -578,58 +578,113 @@ ggsave("all_samples_combined.png", plot = big_plot, width = 20, height = 6 * len
 ```
 ![evaluation](./pic/all_samples_combined.png "evaluation")
 
-# VCF processing
+
 ```
-SRRS=(
-    'SRR616966::41'  # Col-0
-    'SRR611086::78'
-    'SRR5216995::121'
-    'SRR616965::42'  # Ler-0
-    'SRR611087::79'
-    'SRR545231::46'  # Nipponbare
-    'SRR063638::15'
-    'SRR1542423::23' # A17
-    'SRR1572628::Heinz1706' # Heinz 1706
-)
-FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
+#SRR611086
+cd evaluation
+mkdir col-0
+cd col-0
+cp ../SRR611086_8/* .
+bash 0_script/o_master.sh 
 
-for item in "${SRRS[@]}"; do
-    SRR="${item%%::*}"
-    DEPTH="${item##*::}"
+cp 1_genome/genome.fa genome.fa 
+faops filter -l 0 genome.fa stdout | grep -A 1 '^>Pt' | faops one -l 0 genome.fa Pt ref_Pt.fa
 
-    for FOLD in "${FOLDS[@]}"; do
-        CUTOFF=$(bc <<< "(${DEPTH} * ${FOLD}) / 1")
+cp 7_merge_anchors/anchor.non-contained.fasta SRR611086.fa
 
-        echo 1>&2 "==> ${item} ${FOLD}"
+minimap2 -ax sr ref_Pt.fa SRR611086.fa > SRR611086_aln.sam
+samtools view -b SRR611086_aln.sam | samtools sort -o SRR611086_aln.sorted.bam
+samtools index SRR611086_aln.sorted.bam
+samtools mpileup -aa -f ref_Pt.fa SRR611086_aln.sorted.bam > SRR611086_aln.pileup
 
-        BASE_NAME=${SRR}_${FOLD}
-        pushd ${BASE_NAME}
 
-        if [ ! -f 3_gatk/R.filtered.vcf ]; then
-            rm *.sh
-            anchr template \
-                --genome 1000000 \
-                --parallel 24 \
-                --xmx 80g \
-                \
-                --trim "--dedupe --cutoff ${CUTOFF} --cutk 31" \
-                --qual "25" \
-                --len "60" \
-                --filter "adapter artifact" \
-                \
-                --bwa Q25L60 \
-                --gatk
+awk 'BEGIN { OFS="\t"; print "Position", "Score" }
+{
+  ref = toupper($3)
+  depth = $4
+  score = 0
+  if (depth == 0) {
+    print $2, 0
+    next
+  }
+  bases = $5
+  i = 1
+  while (i <= length(bases)) {
+    c = substr(bases, i, 1)
 
-            bsub -q mpi -n 24 -J "${BASE_NAME}" "
+    if (c == "." || c == ",") {
+      if (i+1 <= length(bases) && (substr(bases, i+1, 1) == "+" || substr(bases, i+1, 1) == "-")) {
+        score -= 1
+        i++ # consume this
+        i++ # skip + or -
+        lenstr = ""
+        while (i <= length(bases) && substr(bases, i, 1) ~ /[0-9]/) {
+          lenstr = lenstr substr(bases, i, 1)
+          i++
+        }
+        indel_len = lenstr + 0
+        i += indel_len
+      } else {
+        score += 1
+        i++
+      }
+    }
+    else if (toupper(c) ~ /[ACGTN]/) {
+      if (toupper(c) == ref) {
+        score += 1
+      } else {
+        score -= 1
+      }
+      i++
+    }
+    else if (c == "+" || c == "-") {
+      # standalone indel sign (rare)
+      score -= 1
+      i++
+      lenstr = ""
+      while (i <= length(bases) && substr(bases, i, 1) ~ /[0-9]/) {
+        lenstr = lenstr substr(bases, i, 1)
+        i++
+      }
+      indel_len = lenstr + 0
+      i += indel_len
+    }
+    else {
+      # other pileup symbols (^ $ * etc)
+      i++
+    }
+  }
+  print $2, score
+}' SRR611086_aln.pileup > SRR611086_per_base_scores.txt
 
-                bash 0_script/3_gatk.sh
-            "
-        fi
-
-        popd
-    done
-done
+awk 'NR>1 && $2 < 0 {print $0}' SRR611086_per_base_scores.txt > positions_below_zero.txt
+#28672   -6
 ```
+show in IGV:
+![IGV_col0](./pic/IGV_col0.png)
+```
+scores <- read.table("SRR611086_per_base_scores.txt", header=TRUE, sep="\t")
+library(ggplot2)
+
+p <- ggplot(scores, aes(x=Position, y=Score)) +
+  geom_point(aes(color = Score < 0), size=0.5) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", linewidth = 0.3) + 
+  scale_color_manual(values = c("black", "red"), guide = "none") +
+  theme_classic() +
+  theme(
+    panel.grid.major.x = element_line(color = "grey80", linetype = "dashed", linewidth = 0.3),
+    panel.grid.major.y = element_line(color = "grey80", linetype = "dashed", linewidth = 0.3),
+    panel.grid.minor = element_blank()
+  ) +
+  labs(title = "SRR611086",
+       x = "Genomic Position",
+       y = "Score")
+
+ggsave("SRR611086_score.png", plot = p, width = 8, height = 4)
+```
+![SRR611086-score](./pic/SRR611086_score.png)
+![SRR5216995-score](./pic/SRR5216995_score.png)
+
 # Remove intermediate files
 ```
 find . -type d -name "trim" | xargs rm -fr
