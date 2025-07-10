@@ -318,4 +318,4 @@ p <- ggplot(df, aes(x = `比例(%)`, y = 样本名称)) +
 
 ggsave("heterozygosity_barplot.png", plot = p, width = 8, height = 6, dpi = 300)
 ```
-![heterozygosity](../pic/heterozygosity_barplot.png)
+![heterozygosity](./pic/heterozygosity_barplot.png)
