@@ -244,198 +244,156 @@ cat header.txt F2_GT_matrix.tsv > F2_GT_matrix_with_header.tsv
 ```
 * calculate the proportion
 ```
-awk -v OFS='\t' '
-    BEGIN {
-        while ((getline < "informative_sites.tsv") > 0) {
-            key = $1":"$2
-            col_gt[key] = $5
-            ler_gt[key] = $6
-        }
-        count_col = count_ler = count_mut = total = 0
-    }
-
-    NR==1 {
-        header = "CHROM_POS"
-        for (i=3; i<=NF; i++) {
-            header = header OFS $i
-        }
-        print header > "classification_matrix.tsv"
-        next
-    }
-
-    {
-        key = $1":"$2
-        row = key
-
-        for (i=3; i<=NF; i++) {
-            gt = $i
-            col = col_gt[key]
-            ler = ler_gt[key]
-
-            if (gt == "./.") {
-                row = row OFS "NA"
-                continue
-            }
-
-            if (gt == col) {
-                row = row OFS "Col"
-                count_col++
-            } else if (gt == ler) {
-                row = row OFS "Ler"
-                count_ler++
-            } else {
-                row = row OFS "Mut"
-                count_mut++
-            }
-            total++
-        }
-
-        print row >> "classification_matrix.tsv"
-    }
-
-    END {
-        print "来源分类比例：" > "summary.txt"
-        if (total > 0) {
-            print "Col型\t" count_col "\t" count_col / total * 100 "%" >> "summary.txt"
-            print "Ler型\t" count_ler "\t" count_ler / total * 100 "%" >> "summary.txt"
-            print "突变型\t" count_mut "\t" count_mut / total * 100 "%" >> "summary.txt"
-        } else {
-            print "无有效基因型参与分类" >> "summary.txt"
-        }
-    }
-' F2_GT_matrix_with_header.tsv
-```
-每个样本分开统计：
-```
+GENOME_SIZE=154478
 total_samples=$(cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | wc -l)
 current=1
+> sample_ratio_summary.tsv
+echo -e "Sample\tColRatio\tColGenome\tLerRatio\tLerGenome\tMutRatio\tMutGenome" > sample_ratio_summary.tsv
+
+
 
 cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r line; do
     sample=$(echo "$line" | cut -f1)
-    target_col=$((current + 2))  # 列号 = 样本序号 + 2 (跳过CHROM和POS列)
-    
+    target_col=$((current + 2))
+
     echo "[$current/$total_samples] 正在处理样本 $sample，列号 $target_col"
-    
-    awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
+
+    awk -v OFS='\t' -v target_col="$target_col" -v sample="$sample" -v GENOME_SIZE="$GENOME_SIZE" '
         BEGIN {
             while ((getline < "informative_sites.tsv") > 0) {
                 key = $1":"$2
                 col_gt[key] = $5
                 ler_gt[key] = $6
             }
-
             count_col = count_ler = count_mut = total = 0
-            print "CHROM_POS", sample_name > "classification_matrix_" sample_name ".tsv"
         }
-
         NR > 1 {
             key = $1":"$2
             gt = $target_col
             col = col_gt[key]
             ler = ler_gt[key]
-            
-            if (gt == "./.") {
-                label = "NA"
-                print key, label >> "classification_matrix_" sample_name ".tsv"
-                next
-            }
-            
+
+            if (gt == "./.") next
+
             if (gt == col) {
-                label = "Col"
                 count_col++
             } else if (gt == ler) {
-                label = "Ler"
                 count_ler++
             } else {
-                label = "Mut"
                 count_mut++
             }
-            
             total++
-            print key, label >> "classification_matrix_" sample_name ".tsv"
         }
-
         END {
-            print "来源分类比例：" > "summary_" sample_name ".txt"
             if (total > 0) {
-                print "Col型\t" count_col "\t" count_col / total * 100 "%" >> "summary_" sample_name ".txt"
-                print "Ler型\t" count_ler "\t" count_ler / total * 100 "%" >> "summary_" sample_name ".txt"
-                print "突变型\t" count_mut "\t" count_mut / total * 100 "%" >> "summary_" sample_name ".txt"
+                col_ratio = count_col / total * 100
+                ler_ratio = count_ler / total * 100
+                mut_ratio = count_mut / total * 100
+
+                col_genome = count_col / GENOME_SIZE * 100
+                ler_genome = count_ler / GENOME_SIZE * 100
+                mut_genome = count_mut / GENOME_SIZE * 100
+
+                printf("%s\t%.4f\t%.6f\t%.4f\t%.6f\t%.4f\t%.6f\n", sample, col_ratio, col_genome, ler_ratio, ler_genome, mut_ratio, mut_genome)
             } else {
-                print "无有效基因型参与分类" >> "summary_" sample_name ".txt"
+                printf("%s\tNA\tNA\tNA\tNA\tNA\tNA\n", sample)
             }
         }
-    ' F2_GT_matrix_with_header.tsv
-    
+    ' F2_GT_matrix_with_header.tsv >> sample_ratio_summary.tsv
+
     current=$((current + 1))
 done
 
-echo -e "样本名称\tCol型比例(%)\tLer型比例(%)\t突变型比例(%)" > sample_ratio_summary.tsv
-samples=$(cat ../opts.tsv | cut -f1 | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$")
 
-for sample in $samples; do
-    if [ -f "summary_${sample}.txt" ]; then
-        col_ratio=$(grep "Col型" "summary_${sample}.txt" | awk '{print $3}')
-        ler_ratio=$(grep "Ler型" "summary_${sample}.txt" | awk '{print $3}')
-        mut_ratio=$(grep "突变型" "summary_${sample}.txt" | awk '{print $3}')
-        
-        echo -e "$sample\t$col_ratio\t$ler_ratio\t$mut_ratio" >> sample_ratio_summary.tsv
-    else
-        echo "警告: 样本 $sample 的统计文件不存在，跳过"
-    fi
-done
-
-echo -e "| 样本名称 | Col型比例(%) | Ler型比例(%) | 突变型比例(%) |" > sample_ratio_summary.md
-echo -e "| --- | --- | --- | --- |" >> sample_ratio_summary.md
+echo -e "| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) |" > sample_ratio_summary.md
+echo -e "| --- | --- | --- | --- | --- | --- | --- |" >> sample_ratio_summary.md
 
 tail -n +2 sample_ratio_summary.tsv | awk -F'\t' '{
-    printf("| %s | %s | %s | %s |\n", $1, $2, $3, $4);
+    printf("| %s | %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6, $7);
 }' >> sample_ratio_summary.md
 ```
-| 样本名称 | Col型比例(%) | Ler型比例(%) | 突变型比例(%) |
-| --- | --- | --- | --- |
-| Sample_14 | 100% | 0% | 0% |
-| Sample_18 | 100% | 0% | 0% |
-| Sample_19 | 50% | 0% | 50% |
-| Sample_20 | 100% | 0% | 0% |
-| Sample_21 | 66.6667% | 0% | 33.3333% |
-| Sample_4 | 100% | 0% | 0% |
-| Sample_5 | 100% | 0% | 0% |
-| Sample_6 | 0% | 100% | 0% |
-| Sample_7 | 75% | 0% | 25% |
-| Sample_8 | 100% | 0% | 0% |
-| Sample_c1c2 | 66.6667% | 0% | 33.3333% |
-| Sample_c41 | 80% | 0% | 20% |
-| Sample_c42 | 100% | 0% | 0% |
-| Sample_c45 | 80% | 0% | 20% |
-| Sample_c47 | 100% | 0% | 0% |
-| Sample_c48 | 100% | 0% | 0% |
-| Sample_c51 | 100% | 0% | 0% |
-| Sample_c52 | 100% | 0% | 0% |
-| Sample_c54 | 80% | 0% | 20% |
-| Sample_c57 | 100% | 0% | 0% |
-| Sample_c61 | 100% | 0% | 0% |
-| Sample_c62 | 80% | 0% | 20% |
-| Sample_c63 | 0% | 50% | 50% |
-| Sample_c64 | 100% | 0% | 0% |
-| Sample_c65 | 75% | 0% | 25% |
-| Sample_c66 | 100% | 0% | 0% |
-| Sample_c73 | 100% | 0% | 0% |
-| Sample_c81 | 50% | 0% | 50% |
-| Sample_c82 | 100% | 0% | 0% |
-| Sample_c83 | 100% | 0% | 0% |
-| Sample_c84 | 80% | 0% | 20% |
-| Sample_c85 | 100% | 0% | 0% |
-| Sample_c87 | 0% | 0% | 100% |
-| Sample_c88 | 100% | 0% | 0% |
-| Sample_c89 | 100% | 0% | 0% |
-| Sample_c90 | 100% | 0% | 0% |
-| Sample_c91 | 100% | 0% | 0% |
-| Sample_c92 | 100% | 0% | 0% |
-| Sample_c93 | 100% | 0% | 0% |
-| Sample_c94 | 3.92157% | 88.2353% | 7.84314% |
-| Sample_c95 | 5.76923% | 80.7692% | 13.4615% |
-| Sample_l2c2 | 2% | 90% | 8% |
-| Sample_l2l3 | 7.40741% | 83.3333% | 9.25926% |
-| Sample_l4c1 | 1.66667% | 0% | 98.3333% |
-| Sample_l4l3 | 1.66667% | 0% | 98.3333% |
+| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Sample_14 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_18 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_19 | 50.0000 | 0.000647 | 0.0000 | 0.000000 | 50.0000 | 0.000647 |
+| Sample_20 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_21 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 |
+| Sample_4 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_5 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_6 | 0.0000 | 0.000000 | 100.0000 | 0.000647 | 0.0000 | 0.000000 |
+| Sample_7 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 |
+| Sample_8 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c1c2 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c41 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c42 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 |
+| Sample_c45 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
+| Sample_c47 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c48 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
+| Sample_c51 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c52 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c54 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c57 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c61 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
+| Sample_c62 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c63 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c64 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
+| Sample_c65 | 0.0000 | 0.000000 | 50.0000 | 0.000647 | 50.0000 | 0.000647 |
+| Sample_c66 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c73 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 |
+| Sample_c81 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c82 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c83 | 50.0000 | 0.000647 | 0.0000 | 0.000000 | 50.0000 | 0.000647 |
+| Sample_c84 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c85 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c87 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
+| Sample_c88 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c89 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 100.0000 | 0.000647 |
+| Sample_c90 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c91 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c92 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c93 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c94 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_c95 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
+| Sample_l2c2 | 3.9216 | 0.001295 | 88.2353 | 0.029130 | 7.8431 | 0.002589 |
+| Sample_l2l3 | 5.7692 | 0.001942 | 80.7692 | 0.027188 | 13.4615 | 0.004531 |
+| Sample_l4c1 | 2.0000 | 0.000647 | 90.0000 | 0.029130 | 8.0000 | 0.002589 |
+| Sample_l4l3 | 7.4074 | 0.002589 | 83.3333 | 0.029130 | 9.2593 | 0.003237 |
+
+```
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+df <- read.table("sample_ratio_summary.tsv", header=TRUE, sep="\t", stringsAsFactors=FALSE)
+
+# reshape
+df_long <- df %>%
+  select(Sample, ColGenome, LerGenome) %>%
+  pivot_longer(cols = c(ColGenome, LerGenome), names_to = "来源", values_to = "占比") %>%
+  filter(!is.na(占比))
+
+# 改名成 Col0 / Ler
+df_long$来源 <- recode(df_long$来源,
+                        ColGenome = "Col0",
+                        LerGenome = "Ler")
+
+# 画图
+p <- ggplot(df_long, aes(x=来源, y=占比)) +
+  geom_jitter(width=0.2, size=1, color="black") +
+  stat_summary(fun=mean, geom="crossbar", width=0.5, fatten=2, color="red") +
+  labs(x="Source", y="Heterozygosity Ratio (%)") +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid = element_blank(),
+    axis.line = element_line(color="black"),
+    axis.ticks = element_line(color="black"),
+    axis.text = element_text(color="black"),
+    axis.title = element_text(color="black"),
+    plot.background = element_rect(fill="white", color=NA),
+    panel.background = element_rect(fill="white", color=NA)
+  )
+
+ggsave("genome_proportion_dotplot.png", p, width=6, height=4, dpi=300)
+```
+![Heterozygosity Ratio](./pic/genome_proportion_dotplot.png)

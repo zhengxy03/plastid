@@ -582,6 +582,68 @@ for sample in $samples; do
 done
 
 ```
+```
+awk -v OFS='\t' '
+    BEGIN {
+        while ((getline < "informative_sites.tsv") > 0) {
+            key = $1":"$2
+            col_gt[key] = $5
+            ler_gt[key] = $6
+        }
+        count_col = count_ler = count_mut = total = 0
+    }
+
+    NR==1 {
+        header = "CHROM_POS"
+        for (i=3; i<=NF; i++) {
+            header = header OFS $i
+        }
+        print header > "classification_matrix.tsv"
+        next
+    }
+
+    {
+        key = $1":"$2
+        row = key
+
+        for (i=3; i<=NF; i++) {
+            gt = $i
+            col = col_gt[key]
+            ler = ler_gt[key]
+
+            if (gt == "./.") {
+                row = row OFS "NA"
+                continue
+            }
+
+            if (gt == col) {
+                row = row OFS "Col"
+                count_col++
+            } else if (gt == ler) {
+                row = row OFS "Ler"
+                count_ler++
+            } else {
+                row = row OFS "Mut"
+                count_mut++
+            }
+            total++
+        }
+
+        print row >> "classification_matrix.tsv"
+    }
+
+    END {
+        print "来源分类比例：" > "summary.txt"
+        if (total > 0) {
+            print "Col型\t" count_col "\t" count_col / total * 100 "%" >> "summary.txt"
+            print "Ler型\t" count_ler "\t" count_ler / total * 100 "%" >> "summary.txt"
+            print "突变型\t" count_mut "\t" count_mut / total * 100 "%" >> "summary.txt"
+        } else {
+            print "无有效基因型参与分类" >> "summary.txt"
+        }
+    }
+' F2_GT_matrix_with_header.tsv
+```
 ## rdp4 analysis
 ```
 bcftools consensus -f c44/1_genome/genome.fa c44/3_gatk/R.filtered.vcf.gz > c44_chrC.fa
