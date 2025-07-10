@@ -367,18 +367,15 @@ library(dplyr)
 
 df <- read.table("sample_ratio_summary.tsv", header=TRUE, sep="\t", stringsAsFactors=FALSE)
 
-# reshape
 df_long <- df %>%
   select(Sample, ColGenome, LerGenome) %>%
   pivot_longer(cols = c(ColGenome, LerGenome), names_to = "来源", values_to = "占比") %>%
   filter(!is.na(占比))
 
-# 改名成 Col0 / Ler
 df_long$来源 <- recode(df_long$来源,
                         ColGenome = "Col0",
                         LerGenome = "Ler")
 
-# 画图
 p <- ggplot(df_long, aes(x=来源, y=占比)) +
   geom_jitter(width=0.2, size=1, color="black") +
   stat_summary(fun=mean, geom="crossbar", width=0.5, fatten=2, color="red") +
