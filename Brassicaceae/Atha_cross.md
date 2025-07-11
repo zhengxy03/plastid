@@ -644,6 +644,92 @@ awk -v OFS='\t' '
     }
 ' F2_GT_matrix_with_header.tsv
 ```
+```
+total_samples=$(cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | wc -l)
+current=1
+
+cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | while read -r line; do
+    sample=$(echo "$line" | cut -f1)
+    target_col=$((current + 2))  # 列号 = 样本序号 + 2 (跳过CHROM和POS列)
+    
+    echo "[$current/$total_samples] 正在处理样本 $sample，列号 $target_col"
+    
+    awk -v OFS='\t' -v target_col="$target_col" -v sample_name="$sample" '
+        BEGIN {
+            while ((getline < "informative_sites.tsv") > 0) {
+                key = $1":"$2
+                col_gt[key] = $5
+                ler_gt[key] = $6
+            }
+
+            count_col = count_ler = count_mut = total = 0
+            print "CHROM_POS", sample_name > "classification_matrix_" sample_name ".tsv"
+        }
+
+        NR > 1 {
+            key = $1":"$2
+            gt = $target_col
+            col = col_gt[key]
+            ler = ler_gt[key]
+            
+            if (gt == "./.") {
+                label = "NA"
+                print key, label >> "classification_matrix_" sample_name ".tsv"
+                next
+            }
+            
+            if (gt == col) {
+                label = "Col"
+                count_col++
+            } else if (gt == ler) {
+                label = "Ler"
+                count_ler++
+            } else {
+                label = "Mut"
+                count_mut++
+            }
+            
+            total++
+            print key, label >> "classification_matrix_" sample_name ".tsv"
+        }
+
+        END {
+            print "来源分类比例：" > "summary_" sample_name ".txt"
+            if (total > 0) {
+                print "Col型\t" count_col "\t" count_col / total * 100 "%" >> "summary_" sample_name ".txt"
+                print "Ler型\t" count_ler "\t" count_ler / total * 100 "%" >> "summary_" sample_name ".txt"
+                print "突变型\t" count_mut "\t" count_mut / total * 100 "%" >> "summary_" sample_name ".txt"
+            } else {
+                print "无有效基因型参与分类" >> "summary_" sample_name ".txt"
+            }
+        }
+    ' F2_GT_matrix_with_header.tsv
+    
+    current=$((current + 1))
+done
+
+echo -e "样本名称\tCol型比例(%)\tLer型比例(%)\t突变型比例(%)" > sample_ratio_summary.tsv
+samples=$(cat ../opts.tsv | cut -f1 | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$")
+
+for sample in $samples; do
+    if [ -f "summary_${sample}.txt" ]; then
+        col_ratio=$(grep "Col型" "summary_${sample}.txt" | awk '{print $3}')
+        ler_ratio=$(grep "Ler型" "summary_${sample}.txt" | awk '{print $3}')
+        mut_ratio=$(grep "突变型" "summary_${sample}.txt" | awk '{print $3}')
+        
+        echo -e "$sample\t$col_ratio\t$ler_ratio\t$mut_ratio" >> sample_ratio_summary.tsv
+    else
+        echo "警告: 样本 $sample 的统计文件不存在，跳过"
+    fi
+done
+
+echo -e "| 样本名称 | Col型比例(%) | Ler型比例(%) | 突变型比例(%) |" > sample_ratio_summary.md
+echo -e "| --- | --- | --- | --- |" >> sample_ratio_summary.md
+
+tail -n +2 sample_ratio_summary.tsv | awk -F'\t' '{
+    printf("| %s | %s | %s | %s |\n", $1, $2, $3, $4);
+}' >> sample_ratio_summary.md
+```
 ## rdp4 analysis
 ```
 bcftools consensus -f c44/1_genome/genome.fa c44/3_gatk/R.filtered.vcf.gz > c44_chrC.fa

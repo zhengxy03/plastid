@@ -111,7 +111,7 @@ rsync -avP \
 ```
 # Symlink
 ```
-export FOLD=2
+export FOLD=8
 export GENOME_SIZE=$(
     cat ~/data/plastid/genome/col0/chr.sizes |
         tsv-summarize --sum 2
@@ -209,12 +209,13 @@ cat opts.tsv |
         bsub -q mpi -n 24 -J "{1}" "
             bash 0_script/2_fastqc.sh
             bash 0_script/2_insert_size.sh
-            bash 0_script/2_kat.sh
+            bash 0_script/2_fastk.sh
             bash 0_script/2_trim.sh
             bash 0_script/9_stat_reads.sh
             bash 0_script/3_bwa.sh
             bash 0_script/3_gatk.sh
         "
+    '
 ```
 # heterogeneity
 ```
@@ -276,23 +277,23 @@ tail -n +2 sample_heterozygosity_summary.tsv | awk -F'\t' '{printf("| %s | %s | 
 ```
 | 样本名称 | 异质位点数 | 比例(%) |
 | --- | --- | --- |
-| 11C1 | 189 | 0.122300 |
-| 627ME-13Y1 | 82 | 0.053000 |
-| 627ME-1MI1 | 71 | 0.045900 |
-| 627RMX-1MN4 | 128 | 0.082800 |
+| 11C1 | 182 | 0.117800 |
+| 627ME-13Y1 | 81 | 0.052400 |
+| 627ME-1MI1 | 70 | 0.045300 |
+| 627RMX-1MN4 | 127 | 0.082200 |
 | 627RMX-1MN5 | 125 | 0.080900 |
-| ANH-1 | 134 | 0.086700 |
+| ANH-1 | 133 | 0.086000 |
 | ARGE-1-15 | 192 | 0.124200 |
-| ARR-17 | 155 | 0.100300 |
+| ARR-17 | 153 | 0.099000 |
 | Aa-0 | 73 | 0.047200 |
-| Abd-0 | 144 | 0.093200 |
-| Adam-1 | 184 | 0.119100 |
-| Ag-0 | 76 | 0.049100 |
-| Aiell-1 | 106 | 0.068600 |
-| Aitba-1 | 230 | 0.148800 |
-| Ak-1 | 134 | 0.086700 |
+| Abd-0 | 143 | 0.092500 |
+| Adam-1 | 187 | 0.121000 |
+| Ag-0 | 75 | 0.048500 |
+| Aiell-1 | 107 | 0.069200 |
+| Aitba-1 | 233 | 0.150800 |
+| Ak-1 | 139 | 0.089900 |
 | Alst-1 | 117 | 0.075700 |
-| Alt-1 | 127 | 0.082200 |
+| Alt-1 | 128 | 0.082800 |
 ```
 library(ggplot2)
 library(readr)
