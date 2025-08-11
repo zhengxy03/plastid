@@ -94,6 +94,7 @@ Options:
 ```
 ## *Mycoplasma genitalium* G37
 > g37:生殖支原体，基因组最小的支原体<br>
+
 `g37: reference`
 ```
 mkdir -p g37/1_genome
@@ -207,6 +208,7 @@ AG -> GC -> CT -> TG
 
 ## *Escherichia coli* str. K-12 substr. MG1655
 > mg1655:野生型菌株，具备完整的野生型基因背景<br>
+
 `mg1655: reference`
 ```
 mkdir -p mg1655/1_genome
@@ -282,6 +284,7 @@ bsub -q mpi -n 24 -J "mg1655-0_master" "bash 0_script/0_master.sh"
 ```
 ## *Escherichia coli* str. K-12 substr. DH5alpha
 > dh5alpha:经过诱变的K12菌株，常用于蓝白斑筛选<br>
+
 `dh5alpha: reference`
 ```
 mkdir -p dh5alpha/1_genome
