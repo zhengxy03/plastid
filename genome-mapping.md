@@ -252,8 +252,8 @@ md5sum --check ena_info.md5.txt
 # SRR1542422
 ```
 # Basic info
-* `cutoff = FOLD * DEPTH`
-FOLD 0, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64
+* `cutoff = FOLD * DEPTH` <br>
+FOLD 0, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64<br>
 * 叶绿体的拷贝数>线粒体>核基因组
 # Symlink
 ```
@@ -274,8 +274,8 @@ SRRS=(
 FOLDS=(0 0.25 0.5 1 2 4 8 16 32 64)
 
 for item in "${SRRS[@]}"; do
-    SRR="${item%%::*}" #删除最长匹配的后缀
-    GENOME="${item##*::}" #删除最长匹配的前缀
+    SRR="${item%%::*}"
+    GENOME="${item##*::}"
 
     for FOLD in "${FOLDS[@]}"; do
         BASE_NAME=${SRR}_${FOLD}
@@ -293,7 +293,6 @@ for item in "${SRRS[@]}"; do
         ln -fs ../../../ena/${SRR}_1.fastq.gz R1.fq.gz
         ln -fs ../../../ena/${SRR}_2.fastq.gz R2.fq.gz
         popd
-
     done
 done
 ```
@@ -485,14 +484,13 @@ for item in "${SRRS[@]}"; do
 
 done
 ```
-visualize
+可视化：
 ```R
 library(ggplot2)
 library(dplyr)
 library(readr)
 library(patchwork)
 library(stringr)
-
 
 ordered_samples <- c(
   'SRR616966::Col-0',
@@ -505,6 +503,7 @@ ordered_samples <- c(
   'SRR1542423::A17',
   'SRR1572628::Heinz1706'
 )
+
 sample_mapping <- tibble(
   SRR = str_extract(ordered_samples, "^SRR\\d+"),
   Label = ordered_samples
@@ -595,9 +594,10 @@ cp 7_merge_anchors/anchor.non-contained.fasta SRR611086.fa
 minimap2 -ax sr ref_Pt.fa SRR611086.fa > SRR611086_aln.sam
 samtools view -b SRR611086_aln.sam | samtools sort -o SRR611086_aln.sorted.bam
 samtools index SRR611086_aln.sorted.bam
+#从已排序的 BAM 文件计算每个位点的测序深度和碱基信息
 samtools mpileup -aa -f ref_Pt.fa SRR611086_aln.sorted.bam > SRR611086_aln.pileup
 
-
+#计算每一个位点的得分，得分标准为：若 contig 序列与参考序列一致，则得分 +1，否则得分为 -1
 awk 'BEGIN { OFS="\t"; print "Position", "Score" }
 {
   ref = toupper($3)
