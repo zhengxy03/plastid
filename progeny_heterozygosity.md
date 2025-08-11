@@ -296,24 +296,25 @@ cat ../opts.tsv | while read -r line; do
                 ler_genome = count_ler / GENOME_SIZE * 100
                 mut_genome = count_mut / GENOME_SIZE * 100
 
-                printf("%s\t%.4f\t%.6f\t%.4f\t%.6f\t%.4f\t%.6f\n", sample, col_ratio, col_genome, ler_ratio, ler_genome, mut_ratio, mut_genome)
-            } else {
-                printf("%s\tNA\tNA\tNA\tNA\tNA\tNA\n", sample)
-            }
+                printf("%s\t%.4f\t%.6f\t%.4f\t%.6f\t%.4f\t%.6f\t%d\t%d\t%d\n", \
+                    sample, col_ratio, col_genome, ler_ratio, ler_genome, mut_ratio, mut_genome, count_col, count_ler, count_mut)
+                } else {
+                    printf("%s\tNA\tNA\tNA\tNA\tNA\tNA\t0\t0\t0\n", sample)
+                }
         }
     ' F2_GT_matrix_with_header.tsv >> sample_ratio_tmp.tsv
 
     current=$((current + 1))
 done
 
-echo -e "Sample\tColRatio\tColGenome\tLerRatio\tLerGenome\tMutRatio\tMutGenome" > sample_ratio_summary.tsv
+eecho -e "Sample\tColRatio\tColGenome\tLerRatio\tLerGenome\tMutRatio\tMutGenome\tColCount\tLerCount\tMutCount" > sample_ratio_summary.tsv
 cat sample_ratio_tmp.tsv >> sample_ratio_summary.tsv
 
-echo -e "| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) |" > sample_ratio_summary.md
-echo -e "| --- | --- | --- | --- | --- | --- | --- |" >> sample_ratio_summary.md
+echo -e "| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) | Col型位点数 | Ler型位点数 | 突变型位点数 |" > sample_ratio_summary.md
+echo -e "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |" >> sample_ratio_summary.md
 
 tail -n +2 sample_ratio_summary.tsv | awk -F'\t' '{
-    printf("| %s | %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6, $7);
+    printf("| %s | %s | %s | %s | %s | %s | %s | %d | %d | %d |\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 }' >> sample_ratio_summary.md
 ```
 | 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) |
