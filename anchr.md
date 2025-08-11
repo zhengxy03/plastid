@@ -21,13 +21,11 @@ cbp install spoa
 cbp install bcalm bifrost
 cbp install tsv-utils faops intspan
 cbp install dazzdb daligner
-
-# linux
 cbp install mosdepth
 
+#brew
 brew tap brewsci/bio
 brew tap wang-q/tap
-
 
 FILES=$(curl -fsSL https://api.github.com/repos/wang-q/builds/git/trees/master?recursive=1 |
         jq -r '.tree[] | select( .path | startswith("tar/") ) | .path' |
@@ -40,7 +38,6 @@ for file in $FILES; do
     curl -fsSL --retry 5 --retry-delay 2 \
         "https://github.com/wang-q/builds/raw/master/tar/$file" \
         -o "$file"
-
 done
 
 for file in *.linux.tar.gz; do
@@ -51,10 +48,10 @@ done
 curl -LO https://github.com/brentp/mosdepth/releases/download/v0.3.10/mosdepth
 chmod +x mosdepth
 
-
 brew install wang-q/tap/tsv-utils
 
-anchr dep install | bash
+#dep 检查或安装依赖项
+anchr dep install | bash  
 anchr dep check | bash
 #dazz
 #poa
@@ -222,10 +219,10 @@ popd
 ```
 Options:
   -u, --unitigger <unitigger>  Which unitig constructor to use: bcalm, bifrost, superreads, or tadpole [default: superreads]
-                                - bcalm     # 基于Bloom Filter的算法, 快速判断一个 k-mer 是否存在于测序数据中
-                                - bifrost   # 图形化构建工具, 处理多样本数据，可识别样本间的变异
+                                - bcalm     # 用压缩 de Bruijn 图的方法构建 unitigs，内存小
+                                - bifrost   # 并行构建彩色的压缩的 de Bruijn 图, 处理多样本数据，可识别样本间的变异
                                 - superreads # 基于k-mer的超读长算法, 将重叠的短读长合并为更长的连续序列，减少后续组装的复杂度
-                                - tadpole   # BBtools中的快速组装工具, 贪心延伸：从种子 k-mer 开始，每次选择最可能的延伸路径，直到无法继续
+                                - tadpole   # BBtools中的快速组装工具, 基于 k-mer 的简单拼接和错误纠正
       --estsize <estsize>      Estimated genome size [default: auto]
       --kmer <kmer>            K-mer size to be used [default: 31]
       --min <min>              Minimal length of unitigs [default: 1000]
@@ -381,6 +378,7 @@ done
 
 * dazzname
 ```
+#dazz_db 是一种专门用于存储和管理PacBio长读测序数据（或者类似长读数据）格式的数据库
 Usage: anchr dazzname [OPTIONS] <infiles>...
 
 Arguments:
@@ -395,7 +393,9 @@ Options:
   -V, --version            Print version
 ```
 * show2ovlp
-```
+``` 
+Convert LAshow outputs to overlaps
+
 Usage: anchr show2ovlp [OPTIONS] <show.txt> <replace.tsv>
 
 Arguments:
@@ -412,7 +412,19 @@ Options:
 f_id and g_id are integers, --orig convert them to the original ones
 ```
 * paf2ovlp
+```
+Convert minimap .paf to overlaps
 
+Usage: anchr paf2ovlp [OPTIONS] <infiles>...
+
+Arguments:
+  <infiles>...  Set the input files to use
+
+Options:
+  -o, --outfile <outfile>  Output filename. [stdout] for screen [default: stdout]
+  -h, --help               Print help
+  -V, --version            Print version
+```
 example
 ```
 anchr dazzname 1_4.anchor.fasta -o stdout
@@ -421,6 +433,8 @@ anchr paf2ovlp 1_4.pac.paf
 ```
 * covered
 ```
+Covered regions from .ovlp.tsv files
+
 Usage: anchr covered [OPTIONS] <infiles>...
 
 Arguments:
@@ -462,6 +476,7 @@ anchr restrict 1_4.ovlp.tsv 1_4.restrict.tsv
 ### Overlap-dalinger
 * overlap
 ```
+#通过 daligner 检测重叠区域
 Usage: anchr overlap [OPTIONS] <infiles>...
 
 Arguments:
@@ -487,6 +502,7 @@ anchr overlap 1_4.pac.fasta --idt 0.8 --len 2500 --serial
 ```
 * orient
 ```
+#将重叠序列定位到同一条链上
 Usage: anchr orient [OPTIONS] <infiles>...
 
 Arguments:
@@ -515,9 +531,29 @@ anchr contained contained.fasta
 ```
 * merge
 ```
+Merge overlapped unitigs(合并重叠的superreads、k-unitig 或 anchors)
+
+Usage: anchr merge [OPTIONS] <infile>
+
+Arguments:
+  <infile>  Set the input file to use
+
+Options:
+  -l, --len <len>            Minimal length of overlaps [default: 500]
+  -i, --idt <idt>            Minimal identities of overlaps [default: 0.98]
+      --svg                  Write a .svg file representing the merge graph
+  -p, --parallel <parallel>  Number of threads [default: 8]
+  -o, --outfile <outfile>    Output filename. [stdout] for screen [default: stdout]
+  -h, --help                 Print help
+  -V, --version              Print version
+
+
+* All operations are running in a tempdir and no intermediate files are kept.
+```
+```
 anchr merge merge.fasta -o test.fasta
 ```
-* overlap2 #必须是两个FASTA 文件
+* overlap2 #必须是两个FASTA 文件, 通过 daligner 检测两个 (大) 文件间的重叠
 ```
 Usage: anchr overlap2 [OPTIONS] <infile> <infile2>
 
