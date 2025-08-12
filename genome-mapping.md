@@ -614,7 +614,6 @@ awk 'BEGIN { OFS="\t"; print "Position", "Score" }
 
     # 匹配参考碱基（正向 . 或 反向 ,）
     if (c == "." || c == ",") {
-      # 看下一个字符是不是 + 或 -
       if (i+1 <= length(bases) && (substr(bases, i+1, 1) == "+" || substr(bases, i+1, 1) == "-")) {
         score -= 1
         i++  # 跳过 . 或 ,
