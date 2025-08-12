@@ -575,7 +575,7 @@ plots_in_order <- all_sample_plots[ordered_samples[ordered_samples %in% names(al
 big_plot <- wrap_plots(plots_in_order, ncol = 1)
 ggsave("all_samples_combined.png", plot = big_plot, width = 20, height = 6 * length(plots_in_order),limitsize=FALSE)
 ```
-![evaluation](./pic/all_samples_combined.png "evaluation")
+![evaluation](../plasid/pic/all_samples_combined.png "evaluation")
 
 # col assembly
 ```
@@ -656,7 +656,7 @@ awk 'NR>1 && $2 < 0 {print $0}' SRR611086_per_base_scores.txt > positions_below_
 #28672   -6
 ```
 show in IGV:
-![IGV_col0](./pic/IGV_col0.png)
+![IGV_col0](../plasid/pic/IGV_col0.png)
 ```
 scores <- read.table("SRR611086_per_base_scores.txt", header=TRUE, sep="\t")
 library(ggplot2)
@@ -677,8 +677,8 @@ p <- ggplot(scores, aes(x=Position, y=Score)) +
 
 ggsave("SRR611086_score.png", plot = p, width = 8, height = 4)
 ```
-![SRR611086-score](./pic/SRR611086_score.png)
-![SRR5216995-score](./pic/SRR5216995_score.png)
+![SRR611086-score](../plasid/pic/SRR611086_score.png)
+![SRR5216995-score](../plasid/pic/SRR5216995_score.png)
 
 # Remove intermediate files
 ```
