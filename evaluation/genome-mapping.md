@@ -581,15 +581,15 @@ ggsave("all_samples_combined.png", plot = big_plot, width = 20, height = 6 * len
 ```
 #SRR611086
 cd evaluation
-mkdir col0
-cd col0
+mkdir col-0
+cd col-0
 cp ../SRR611086_8/* .
-bash 0_script/0_master.sh 
+bash 0_script/o_master.sh 
 
 cp 1_genome/genome.fa genome.fa 
 faops filter -l 0 genome.fa stdout | grep -A 1 '^>Pt' | faops one -l 0 genome.fa Pt ref_Pt.fa
 
-cp 7_merge_unitigs_bcalm/anchor.non-contained.fasta SRR611086.fa
+cp 7_merge_anchors/anchor.non-contained.fasta SRR611086.fa
 
 minimap2 -ax sr ref_Pt.fa SRR611086.fa > SRR611086_aln.sam
 samtools view -b SRR611086_aln.sam | samtools sort -o SRR611086_aln.sorted.bam
@@ -612,40 +612,45 @@ awk 'BEGIN { OFS="\t"; print "Position", "Score" }
   while (i <= length(bases)) {
     c = substr(bases, i, 1)
 
-    # 匹配参考碱基（正向 . 或 反向 ,）
     if (c == "." || c == ",") {
-      # 看下一个字符是不是 + 或 -
       if (i+1 <= length(bases) && (substr(bases, i+1, 1) == "+" || substr(bases, i+1, 1) == "-")) {
         score -= 1
-        i++  # 跳过 . 或 ,
-        i++  # 跳过 + 或 -
+        i++ # consume this
+        i++ # skip + or -
         lenstr = ""
         while (i <= length(bases) && substr(bases, i, 1) ~ /[0-9]/) {
           lenstr = lenstr substr(bases, i, 1)
           i++
         }
         indel_len = lenstr + 0
-        i += indel_len  # 跳过 indel 的碱基
+        i += indel_len
       } else {
         score += 1
         i++
       }
     }
-    # 跳过^
-    else if (c == "^") {
-      i += 2
-    }
-    # 跳过$
-    else if (c == "$") {
+    else if (toupper(c) ~ /[ACGTN]/) {
+      if (toupper(c) == ref) {
+        score += 1
+      } else {
+        score -= 1
+      }
       i++
     }
-    # 其他碱基（不匹配参考或匹配参考但不在 . , 中出现的情况）
-    else if (toupper(c) ~ /[ACGTN]/) {
+    else if (c == "+" || c == "-") {
+      # standalone indel sign (rare)
       score -= 1
       i++
+      lenstr = ""
+      while (i <= length(bases) && substr(bases, i, 1) ~ /[0-9]/) {
+        lenstr = lenstr substr(bases, i, 1)
+        i++
+      }
+      indel_len = lenstr + 0
+      i += indel_len
     }
-    # 跳过其他符号
     else {
+      # other pileup symbols (^ $ * etc)
       i++
     }
   }
