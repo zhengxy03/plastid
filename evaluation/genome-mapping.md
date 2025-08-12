@@ -654,6 +654,9 @@ awk 'BEGIN { OFS="\t"; print "Position", "Score" }
 
 awk 'NR>1 && $2 < 0 {print $0}' SRR611086_per_base_scores.txt > positions_below_zero.txt
 #28672   -6
+
+#SRR5216995
+#28672	-4
 ```
 show in IGV:
 ![IGV_col0](../pic/IGV_col0.png)
