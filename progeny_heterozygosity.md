@@ -191,7 +191,7 @@ bcftools merge -m all Col_Pt.renamed.vcf.gz Ler_Pt.renamed.vcf.gz -Oz -o Col_Ler
 bcftools index Col_Ler.merged.vcf.gz
 
 bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT\t]\n' Col_Ler.merged.vcf.gz > Col_Ler_GT.tsv
-awk '$5 != $6' Col_Ler_GT.tsv > informative_sites.tsv
+awk '$5 != $6' Col_Ler_GT.tsv > different_sites.tsv
 ```
 * extract progeny GT
 ```
@@ -235,7 +235,7 @@ bgzip ../Atha_cross.vcf
 bcftools index -f ../Atha_cross.vcf.gz
 
 #与父母本比较
-bcftools view -R <(cut -f1,2 informative_sites.tsv) ../Atha_cross.vcf.gz -Oz -o F2_informative.vcf.gz
+bcftools view -R <(cut -f1,2 different_sites.tsv) ../Atha_cross.vcf.gz -Oz -o F2_informative.vcf.gz
 
 bcftools index F2_informative.vcf.gz
 bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_informative.vcf.gz > F2_GT_matrix.tsv
@@ -245,8 +245,24 @@ cat header.txt F2_GT_matrix.tsv > F2_GT_matrix_with_header.tsv
 * calculate the proportion
 ```
 GENOME_SIZE=154478
-total_samples=$(cat ../opts.tsv | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | wc -l)
+total_samples=$(awk -F'\t' '$1 != "Sample_Col_G" && $1 != "Sample_Ler_XL_4"' ../opts.tsv | wc -l)
 current=1
+
+# 从父母本差异VCF提取 REF/ALT 变异长度
+bcftools query -s Col,Ler -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT\t]\n' Col_Ler.merged.vcf.gz \
+| awk -v OFS='\t' '{
+    split($4, alts, ",");
+    len_ref = length($3);
+    len_alt = length(alts[1]);
+    if (len_ref == len_alt) {
+        len_bp = len_ref;
+    } else {
+        len_bp = (len_ref > len_alt ? len_ref - len_alt : len_alt - len_ref);
+    }
+    print $1, $2, $3, alts[1], $5, $6, len_bp;
+}' > different_sites_with_len.tsv
+
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' F2_informative.vcf.gz > F2_sites_ref_alt.tsv
 
 > sample_ratio_tmp.tsv
 cat ../opts.tsv | while read -r line; do
@@ -262,12 +278,26 @@ cat ../opts.tsv | while read -r line; do
 
     awk -v OFS='\t' -v target_col="$target_col" -v sample="$sample" -v GENOME_SIZE="$GENOME_SIZE" '
         BEGIN {
-            while ((getline < "informative_sites.tsv") > 0) {
+            # 父母差异位点长度
+            while ((getline < "different_sites_with_len.tsv") > 0) {
                 key = $1":"$2
                 col_gt[key] = $5
                 ler_gt[key] = $6
+                site_len[key] = $7
+            }
+            # F2位点长度
+            while ((getline < "F2_sites_ref_alt.tsv") > 0) {
+                key = $1":"$2
+                len_ref = length($3)
+                len_alt = length($4)
+                if (len_ref == len_alt) {
+                    f2_len[key] = len_ref
+                } else {
+                    f2_len[key] = (len_ref > len_alt ? len_ref - len_alt : len_alt - len_ref)
+                }
             }
             count_col = count_ler = count_mut = total = 0
+            len_col = len_ler = len_mut = 0
         }
         NR > 1 {
             key = $1":"$2
@@ -275,95 +305,105 @@ cat ../opts.tsv | while read -r line; do
             col = col_gt[key]
             ler = ler_gt[key]
 
+            # 优先用父母差异长度
+            this_len = (site_len[key] != "" ? site_len[key] : f2_len[key])
+
             if (gt == "./.") next
 
             if (gt == col) {
                 count_col++
+                len_col += this_len
             } else if (gt == ler) {
                 count_ler++
+                len_ler += this_len
             } else {
                 count_mut++
+                len_mut += this_len
             }
             total++
         }
         END {
-            if (total > 0) {
+            if (total > 0 && GENOME_SIZE > 0) {
                 col_ratio = count_col / total * 100
                 ler_ratio = count_ler / total * 100
                 mut_ratio = count_mut / total * 100
 
-                col_genome = count_col / GENOME_SIZE * 100
-                ler_genome = count_ler / GENOME_SIZE * 100
-                mut_genome = count_mut / GENOME_SIZE * 100
+                col_genome = len_col / GENOME_SIZE * 100
+                ler_genome = len_ler / GENOME_SIZE * 100
+                mut_genome = len_mut / GENOME_SIZE * 100
 
-                printf("%s\t%.4f\t%.6f\t%.4f\t%.6f\t%.4f\t%.6f\t%d\t%d\t%d\n", \
-                    sample, col_ratio, col_genome, ler_ratio, ler_genome, mut_ratio, mut_genome, count_col, count_ler, count_mut)
-                } else {
-                    printf("%s\tNA\tNA\tNA\tNA\tNA\tNA\t0\t0\t0\n", sample)
-                }
+                printf("%s\t%.4f\t%.6f\t%.4f\t%.6f\t%.4f\t%.6f\t%d\t%d\t%d\t%d\t%d\t%d\n", \
+                    sample, col_ratio, col_genome, ler_ratio, ler_genome, mut_ratio, mut_genome, \
+                    count_col, count_ler, count_mut, len_col, len_ler, len_mut)
+            } else {
+                printf("%s\tNA\tNA\tNA\tNA\tNA\tNA\t0\t0\t0\t0\t0\t0\n", sample)
+            }
         }
     ' F2_GT_matrix_with_header.tsv >> sample_ratio_tmp.tsv
 
     current=$((current + 1))
 done
 
-eecho -e "Sample\tColRatio\tColGenome\tLerRatio\tLerGenome\tMutRatio\tMutGenome\tColCount\tLerCount\tMutCount" > sample_ratio_summary.tsv
+echo -e "Sample\tColRatio\tColGenome\tLerRatio\tLerGenome\tMutRatio\tMutGenome\tColCount\tLerCount\tMutCount\tColLength\tLerLength\tMutLength" > sample_ratio_summary.tsv
 cat sample_ratio_tmp.tsv >> sample_ratio_summary.tsv
 
-echo -e "| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) | Col型位点数 | Ler型位点数 | 突变型位点数 |" > sample_ratio_summary.md
-echo -e "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |" >> sample_ratio_summary.md
+echo -e "| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) | Col型位点数 | Ler型位点数 | 突变型位点数 | Col长度 | Ler长度 | 突变长度 |" > sample_ratio_summary.md
+echo -e "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |" >> sample_ratio_summary.md
 
 tail -n +2 sample_ratio_summary.tsv | awk -F'\t' '{
-    printf("| %s | %s | %s | %s | %s | %s | %s | %d | %d | %d |\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+    printf("| %s | %s | %s | %s | %s | %s | %s | %d | %d | %d | %d | %d | %d |\n", \
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
 }' >> sample_ratio_summary.md
+
 ```
-| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) |
-| --- | --- | --- | --- | --- | --- | --- |
-| Sample_14 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_18 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_19 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 |
-| Sample_20 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_21 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 |
-| Sample_4 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_5 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_6 | 0.0000 | 0.000000 | 100.0000 | 0.000647 | 0.0000 | 0.000000 |
-| Sample_7 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 |
-| Sample_8 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c1c2 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c41 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c42 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 |
-| Sample_c45 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
-| Sample_c47 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c48 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
-| Sample_c51 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c52 | 100.0000 | 0.003884 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c54 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c57 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c61 | 83.3333 | 0.003237 | 0.0000 | 0.000000 | 16.6667 | 0.000647 |
-| Sample_c62 | 50.0000 | 0.000647 | 0.0000 | 0.000000 | 50.0000 | 0.000647 |
-| Sample_c63 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c64 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 |
-| Sample_c65 | 33.3333 | 0.000647 | 33.3333 | 0.000647 | 33.3333 | 0.000647 |
-| Sample_c66 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c73 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
-| Sample_c81 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c82 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c83 | 50.0000 | 0.000647 | 0.0000 | 0.000000 | 50.0000 | 0.000647 |
-| Sample_c84 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c85 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c87 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 |
-| Sample_c88 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c89 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 100.0000 | 0.000647 |
-| Sample_c90 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c91 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c92 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c93 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c94 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_c95 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 |
-| Sample_l2c2 | 3.9216 | 0.001295 | 88.2353 | 0.029130 | 7.8431 | 0.002589 |
-| Sample_l2l3 | 5.7692 | 0.001942 | 80.7692 | 0.027188 | 13.4615 | 0.004531 |
-| Sample_l4c1 | 2.0000 | 0.000647 | 90.0000 | 0.029130 | 8.0000 | 0.002589 |
-| Sample_l4l3 | 7.4074 | 0.002589 | 83.3333 | 0.029130 | 9.2593 | 0.003237 |
+| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) | Col型位点数 | Ler型位点数 | 突变型位点数 | Col长度 | Ler长度 | 突变长度 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Sample_14 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_18 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_19 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 | 3 | 0 | 1 | 0 | 0 | 0 |
+| Sample_20 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 0 | 0 | 0 |
+| Sample_21 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 | 2 | 0 | 1 | 0 | 0 | 0 |
+| Sample_4 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Sample_5 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_6 | 0.0000 | 0.000000 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Sample_7 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 | 3 | 0 | 1 | 0 | 0 | 0 |
+| Sample_8 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c1c2 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c41 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 5 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c42 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 | 2 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c45 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 | 4 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c47 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c48 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 | 4 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c51 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c52 | 100.0000 | 0.003884 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 6 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c54 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c57 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c61 | 83.3333 | 0.003237 | 0.0000 | 0.000000 | 16.6667 | 0.000647 | 5 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c62 | 50.0000 | 0.000647 | 0.0000 | 0.000000 | 50.0000 | 0.000647 | 1 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c63 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c64 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 | 3 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c65 | 33.3333 | 0.000647 | 33.3333 | 0.000647 | 33.3333 | 0.000647 | 1 | 1 | 1 | 0 | 0 | 0 |
+| Sample_c66 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c73 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 | 4 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c81 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c82 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c83 | 50.0000 | 0.000647 | 0.0000 | 0.000000 | 50.0000 | 0.000647 | 1 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c84 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c85 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c87 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 | 4 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c88 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c89 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 100.0000 | 0.000647 | 0 | 0 | 1 | 0 | 0 | 0 |
+| Sample_c90 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c91 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c92 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c93 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c94 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c95 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 0 | 0 | 0 |
+| Sample_l2c2 | 3.9216 | 0.001295 | 88.2353 | 0.029130 | 7.8431 | 0.002589 | 2 | 45 | 4 | 0 | 0 | 0 |
+| Sample_l2l3 | 5.7692 | 0.001942 | 80.7692 | 0.027188 | 13.4615 | 0.004531 | 3 | 42 | 7 | 0 | 0 | 0 |
+| Sample_l4c1 | 2.0000 | 0.000647 | 90.0000 | 0.029130 | 8.0000 | 0.002589 | 1 | 45 | 4 | 0 | 0 | 0 |
+| Sample_l4l3 | 7.4074 | 0.002589 | 83.3333 | 0.029130 | 9.2593 | 0.003237 | 4 | 45 | 5 | 0 | 0 | 0 |
+
 ```
 library(ggplot2)
 library(tidyr)
