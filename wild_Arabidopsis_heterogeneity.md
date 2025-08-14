@@ -109,6 +109,26 @@ rsync -avP \
     ~/project/plastid/Atha_1001/ \
     wangq@202.119.37.251:zxy/plastid/Atha_1001/ena
 ```
+| name        | srx       | platform | layout | ilength | srr        |      spots | bases |
+|-------------|-----------|----------|--------|---------|------------|-----------:|-------|
+| 11C1        | SRX972788 | ILLUMINA | PAIRED |         | SRR1946105 | 20,357,230 | 3.79G |
+| 328PNA062   | SRX972701 | ILLUMINA | PAIRED |         | SRR1946018 | 73,235,208 | 6.62G |
+| 627ME-13Y1  | SRX972634 | ILLUMINA | PAIRED |         | SRR1945951 | 44,902,951 | 8.28G |
+| 627ME-1MI1  | SRX972635 | ILLUMINA | PAIRED |         | SRR1945952 | 48,675,298 | 8.98G |
+| 627RMX-1MN4 | SRX972632 | ILLUMINA | PAIRED |         | SRR1945949 | 37,102,228 | 6.82G |
+| 627RMX-1MN5 | SRX972633 | ILLUMINA | PAIRED |         | SRR1945950 | 44,085,175 | 8.11G |
+| ANH-1       | SRX972422 | ILLUMINA | PAIRED |         | SRR1945739 | 10,783,643 | 2.03G |
+| ARGE-1-15   | SRX973146 | ILLUMINA | PAIRED |         | SRR1946463 | 25,951,374 | 4.83G |
+| ARR-17      | SRX973157 | ILLUMINA | PAIRED |         | SRR1946474 | 14,893,935 | 2.77G |
+| Aa-0        | SRX972490 | ILLUMINA | PAIRED |         | SRR1945807 |  9,051,264 | 1.7G  |
+| Abd-0       | SRX972484 | ILLUMINA | PAIRED |         | SRR1945801 | 13,961,306 | 2.63G |
+| Adam-1      | SRX972881 | ILLUMINA | PAIRED |         | SRR1946198 | 12,010,826 | 2.24G |
+| Ag-0        | SRX972432 | ILLUMINA | PAIRED |         | SRR1945749 | 10,141,217 | 1.91G |
+| Aiell-1     | SRX972915 | ILLUMINA | PAIRED |         | SRR1946232 | 12,869,053 | 2.4G  |
+| Aitba-1     | SRX972878 | ILLUMINA | PAIRED |         | SRR1946195 | 11,730,031 | 2.18G |
+| Ak-1        | SRX972485 | ILLUMINA | PAIRED |         | SRR1945802 |  8,524,299 | 1.6G  |
+| Alst-1      | SRX972486 | ILLUMINA | PAIRED |         | SRR1945803 |  9,347,634 | 1.76G |
+| Alt-1       | SRX973020 | ILLUMINA | PAIRED |         | SRR1946337 | 24,312,469 | 4.53G |
 # Symlink
 ```
 export FOLD=8
