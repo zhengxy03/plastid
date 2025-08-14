@@ -428,4 +428,6 @@ p <- ggplot(df_long, aes(x=来源, y=占比)) +
 
 ggsave("genome_proportion_dotplot.png", p, width=6, height=4, dpi=300)
 ```
-![Heterozygosity Ratio](../pic/genome_proportion_dotplot.png)
+![Heterozygosity Ratio][def]
+
+[def]: ../pic/genome_proportion_dotplot.png
