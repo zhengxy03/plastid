@@ -239,13 +239,15 @@ bcftools view -R <(cut -f1,2 different_sites.tsv) ../Atha_cross.vcf.gz -Oz -o F2
 
 bcftools index F2_informative.vcf.gz
 bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_informative.vcf.gz > F2_GT_matrix.tsv
-echo -e "CHROM\tPOS\t$(cat ../opts.tsv | cut -f1 | grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" | paste -sd '\t' -)" > header.txt
+
+grep -v -E '^Sample_Col_G|^Sample_Ler_XL_4' ../opts.tsv > opts_no_parents.tsv
+echo -e "CHROM\tPOS\t$(cat opts_no_parents.tsv | cut -f1 | paste -sd '\t' -)" > header.txt
 cat header.txt F2_GT_matrix.tsv > F2_GT_matrix_with_header.tsv
 ```
 * calculate the proportion
 ```
 GENOME_SIZE=154478
-total_samples=$(awk -F'\t' '$1 != "Sample_Col_G" && $1 != "Sample_Ler_XL_4"' ../opts.tsv | wc -l)
+total_samples=$(cat opts_no_parents.tsv | wc -l)
 current=1
 
 # 从父母本差异VCF提取 REF/ALT 变异长度
@@ -267,11 +269,6 @@ bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' F2_informative.vcf.gz > F2_sites_
 > sample_ratio_tmp.tsv
 cat ../opts.tsv | while read -r line; do
     sample=$(echo "$line" | cut -f1)
-
-    if [[ "$sample" == "Sample_Col_G" || "$sample" == "Sample_Ler_XL_4" ]]; then
-        continue
-    fi
-
     target_col=$((current + 2))
 
     echo "[$current/$total_samples] 正在处理样本 $sample，列号 $target_col"
@@ -347,7 +344,7 @@ done
 echo -e "Sample\tColRatio\tColGenome\tLerRatio\tLerGenome\tMutRatio\tMutGenome\tColCount\tLerCount\tMutCount\tColLength\tLerLength\tMutLength" > sample_ratio_summary.tsv
 cat sample_ratio_tmp.tsv >> sample_ratio_summary.tsv
 
-echo -e "| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) | Col型位点数 | Ler型位点数 | 突变型位点数 | Col长度 | Ler长度 | 突变长度 |" > sample_ratio_summary.md
+echo -e "| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | Mut型比例(%) | Mut基因组占比(%) | Col型位点数 | Ler型位点数 | Mut型位点数 | Col长度 | Ler长度 | Mut长度 |" > sample_ratio_summary.md
 echo -e "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |" >> sample_ratio_summary.md
 
 tail -n +2 sample_ratio_summary.tsv | awk -F'\t' '{
@@ -356,7 +353,7 @@ tail -n +2 sample_ratio_summary.tsv | awk -F'\t' '{
 }' >> sample_ratio_summary.md
 
 ```
-| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | 突变型比例(%) | 突变基因组占比(%) | Col型位点数 | Ler型位点数 | 突变型位点数 | Col长度 | Ler长度 | 突变长度 |
+| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | Mut型比例(%) | Mut基因组占比(%) | Col型位点数 | Ler型位点数 | Mut型位点数 | Col长度 | Ler长度 | Mut长度 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Sample_14 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
 | Sample_18 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 0 | 0 | 0 |
@@ -437,4 +434,4 @@ p <- ggplot(df_long, aes(x=来源, y=占比)) +
 
 ggsave("genome_proportion_dotplot.png", p, width=6, height=4, dpi=300)
 ```
-![Heterozygosity Ratio](./pic/genome_proportion_dotplot.png)
+![Heterozygosity Ratio](../pic/genome_proportion_dotplot.png)
