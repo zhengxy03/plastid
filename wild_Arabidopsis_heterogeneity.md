@@ -294,6 +294,9 @@ echo -e "| 样本名称 | 异质位点数 | 比例(%) |" > sample_heterozygosity
 echo -e "| --- | --- | --- |" >> sample_heterozygosity_summary.md
 
 tail -n +2 sample_heterozygosity_summary.tsv | awk -F'\t' '{printf("| %s | %s | %s |\n", $1, $2, $3)}' >> sample_heterozygosity_summary.md
+tail -n +2 sample_heterozygosity_summary.tsv \
+| perl -F'\t' -ane 'printf("| %s | %s | %s |\n", $F[0], $F[1], $F[2])' \
+>> sample_heterozygosity_summary_perl.md
 ```
 | 样本名称 | 异质位点数 | 比例(%) |
 | --- | --- | --- |
