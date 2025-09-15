@@ -191,7 +191,7 @@ bcftools merge -m all Col_Pt.renamed.vcf.gz Ler_Pt.renamed.vcf.gz -Oz -o Col_Ler
 bcftools index Col_Ler.merged.vcf.gz
 
 bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT\t]\n' Col_Ler.merged.vcf.gz > Col_Ler_GT.tsv
-awk '$5 != $6' Col_Ler_GT.tsv > different_sites.tsv
+perl -ane 'print if $F[4] ne $F[5]' Col_Ler_GT.tsv > different_sites.tsv
 ```
 * extract progeny GT
 ```
@@ -237,34 +237,142 @@ bcftools index -f ../Atha_cross.vcf.gz
 #与父母本比较
 bcftools view -R <(cut -f1,2 different_sites.tsv) ../Atha_cross.vcf.gz -Oz -o F2_informative.vcf.gz
 
-bcftools index F2_informative.vcf.gz
-bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_informative.vcf.gz > F2_GT_matrix.tsv
+#排除类似异质性位点的假象
+cp ~/data/plastid/genome/col0/genome.fa .
+faops some genome.fa <(echo 1; echo 2; echo 3; echo 4; echo 5) chr.fa
+faops some genome.fa <(echo Pt) Pt.fa
+faops some genome.fa <(echo Mt) Mt.fa
+
+#去除核/线粒体同源区域
+bwa index chr.fa
+bwa index Mt.fa
+bwa index Pt.fa
+
+bwa mem -t 8 chr.fa Pt.fa | samtools sort -o Pt_vs_nuclear.bam
+bwa mem -t 8 Mt.fa Pt.fa  | samtools sort -o Pt_vs_mt.bam
+
+bedtools bamtobed -i Pt_vs_nuclear.bam > Pt_vs_nuclear.bed
+bedtools bamtobed -i Pt_vs_mt.bam > Pt_vs_mt.bed
+cat Pt_vs_nuclear.bed Pt_vs_mt.bed | bedtools sort -i - | bedtools merge -i - > Pt_homology.bed
+bcftools view -T ^Pt_homology.bed F2_informative.vcf.gz -Oz -o F2_filtered_homology.vcf.gz
+bcftools index -f F2_filtered_homology.vcf.gz
+
+#稀有位点过滤 (<10% 样本)
+bcftools query -f '%CHROM\t%POS[\t%GT]\n' F2_filtered_homology.vcf.gz |
+perl -F'\t' -ane '
+    $total_samples = '$(cat opts_no_parents.tsv | wc -l)';
+    $count_alt = 0;
+    $total = 0;
+    for ($i = 2; $i < @F; $i++) {
+        if ($F[$i] ne "./.") {
+            $total++;
+            $count_alt++ if $F[$i] =~ /1/;
+        }
+    }
+    if ($total > 0 && $count_alt / $total >= 0.1) {
+        print join("\t", @F[0,1]), "\n";
+    }
+' > common_sites.txt
+bcftools view -R common_sites.txt F2_filtered_homology.vcf.gz -Oz -o F2_common.vcf.gz
+bcftools index -f F2_common.vcf.gz
+
+# 成簇位点过滤 (<50bp)
+# 提取并转换位点
+bcftools query -f '%CHROM\t%POS\n' F2_common.vcf.gz | \
+perl -ane 'print "$F[0]\t" . ($F[1] - 1) . "\t$F[1]\n"' > sites.bed
+
+# 排序和聚类
+bedtools sort -i sites.bed | \
+bedtools cluster -d 50 -i - > clustered.bed
+
+#处理聚类结果
+perl -ane '
+    $cluster_count{$F[3]}++;
+    push @{$cluster_info{$F[3]}}, [$F[0], $F[2]];
+    END {
+        foreach $cluster_id (sort { $a <=> $b } keys %cluster_count) {
+            if ($cluster_count{$cluster_id} == 1) {
+                my $site = $cluster_info{$cluster_id}[0];
+                print "$site->[0]\t$site->[1]\n";
+            }
+        }
+    }
+' clustered.bed > nonclustered_chrom_pos.txt
+
+bcftools view -R nonclustered_chrom_pos.txt F2_common.vcf.gz -Oz -o F2_noncluster.vcf.gz
+bcftools index -f F2_noncluster.vcf.gz
+
+
+#排除测序或者 PCR  的偏向性错误（单碱基重复±2bp 过滤）
+grep -v "^>" Pt.fa | tr -d '\n' > Pt.seq.txt
+
+awk '{
+    seq=$0; pos=1;
+    while (match(seq, /(A{5,}|T{5,}|C{5,}|G{5,})/)) {
+        start=pos+RSTART-1;
+        end=start+RLENGTH-1;
+        print "Pt\t" start-1 "\t" end;
+        seq=substr(seq, RSTART+RLENGTH);
+        pos=start+RLENGTH;
+    }
+}' Pt.seq.txt > homopolymer.bed
+perl -ne '
+    while (/(A{5,}|T{5,}|C{5,}|G{5,})/g) {
+        $start = $-[0];       # 0-based
+        $end   = $+[0];       # exclusive
+        print "Pt\t$start\t$end\n";
+    }
+' Pt.seq.txt > homopolymer.bed
+samtools faidx Pt.fa
+bedtools slop -i homopolymer.bed -g Pt.fa.fai -b 2 > homopolymer_plus2.bed
+bcftools view -T ^homopolymer_plus2.bed F2_noncluster.vcf.gz -Oz -o F2_highconf.vcf.gz
+bcftools index -f F2_highconf.vcf.gz
+
+# 提取 GT 矩阵（基于高置信度 VCF）
+bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_highconf.vcf.gz > F2_GT_matrix.tsv
 
 grep -v -E '^Sample_Col_G|^Sample_Ler_XL_4|^Sample_c1c2|^Sample_l2c2|^Sample_l2l3|^Sample_l4c1|^Sample_l4l3' ../opts.tsv > opts_no_parents.tsv
 echo -e "CHROM\tPOS\t$(cat opts_no_parents.tsv | cut -f1 | paste -sd '\t' -)" > header.txt
 cat header.txt F2_GT_matrix.tsv > F2_GT_matrix_with_header.tsv
+
+bcftools query -f '%CHROM\t%POS\n' F2_highconf.vcf.gz > highconf_sites.list
+awk 'NR==FNR {a[$1":"$2]; next} ($1":"$2 in a)' highconf_sites.list different_sites_with_len.tsv > different_sites_with_len_highconf.tsv
+awk 'NR==FNR {a[$1":"$2]; next} ($1":"$2 in a)' highconf_sites.list F2_sites_ref_alt.tsv > F2_sites_ref_alt_highconf.tsv
+
+perl -F'\s+' -ane '
+    BEGIN {
+        open my $fh, "<", "highconf_sites.list" or die $!;
+        while (<$fh>) {
+            chomp;
+            my @f = split /\s+/;
+            $seen{"$f[0]:$f[1]"} = 1;
+        }
+        close $fh;
+    }
+    $key = "$F[0]:$F[1]";
+    print if $seen{$key};
+' different_sites_with_len.tsv > different_sites_with_len_highconf_perl.tsv
+
+
+
+perl -F'\t' -ane '
+    BEGIN {
+        open my $fh, "<", "highconf_sites.list" or die $!;
+        while (<$fh>) {
+            chomp;
+            $seen{$_} = 1;
+        }
+        close $fh;
+    }
+    $key = "$F[0]:$F[1]";
+    print if $seen{$key};
+' F2_sites_ref_alt.tsv > F2_sites_ref_alt_highconf_perl.tsv
 ```
 * calculate the proportion
 ```
 GENOME_SIZE=154478
 total_samples=$(cat opts_no_parents.tsv | wc -l)
 current=1
-
-# 从父母本差异VCF提取 REF/ALT 变异长度
-bcftools query -s Col,Ler -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT\t]\n' Col_Ler.merged.vcf.gz \
-| awk -v OFS='\t' '{
-    split($4, alts, ",");
-    len_ref = length($3);
-    len_alt = length(alts[1]);
-    if (len_ref == len_alt) {
-        len_bp = len_ref;
-    } else {
-        len_bp = (len_ref > len_alt ? len_ref - len_alt : len_alt - len_ref);
-    }
-    print $1, $2, $3, alts[1], $5, $6, len_bp;
-}' > different_sites_with_len.tsv
-
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' F2_informative.vcf.gz > F2_sites_ref_alt.tsv
 
 > sample_ratio_tmp.tsv
 cat opts_no_parents.tsv | while read -r line; do
@@ -273,67 +381,77 @@ cat opts_no_parents.tsv | while read -r line; do
 
     echo "[$current/$total_samples] 正在处理样本 $sample，列号 $target_col"
 
-    awk -v OFS='\t' -v target_col="$target_col" -v sample="$sample" -v GENOME_SIZE="$GENOME_SIZE" '
+    sample="$sample" target_col="$target_col" GENOME_SIZE="$GENOME_SIZE" \
+    perl -F'\t' -ane '
         BEGIN {
+            $sample     = $ENV{"sample"};
+            $target_col = $ENV{"target_col"};
+            $genome_size= $ENV{"GENOME_SIZE"};
+
             # 父母差异位点长度
-            while ((getline < "different_sites_with_len.tsv") > 0) {
-                key = $1":"$2
-                col_gt[key] = $5
-                ler_gt[key] = $6
-                site_len[key] = $7
+            open my $fh1, "<", "different_sites_with_len_highconf.tsv" or die $!;
+            while (<$fh1>) {
+                chomp;
+                my @f = split /\t/;
+                my $key = "$f[0]:$f[1]";
+                $col_gt{$key}  = $f[4];
+                $ler_gt{$key}  = $f[5];
+                $site_len{$key}= $f[6];
             }
+            close $fh1;
+
             # F2位点长度
-            while ((getline < "F2_sites_ref_alt.tsv") > 0) {
-                key = $1":"$2
-                len_ref = length($3)
-                len_alt = length($4)
-                if (len_ref == len_alt) {
-                    f2_len[key] = len_ref
-                } else {
-                    f2_len[key] = (len_ref > len_alt ? len_ref - len_alt : len_alt - len_ref)
-                }
+            open my $fh2, "<", "F2_sites_ref_alt_highconf.tsv" or die $!;
+            while (<$fh2>) {
+                chomp;
+                my @f = split /\t/;
+                my $key = "$f[0]:$f[1]";
+                my $len_ref = length($f[2]);
+                my $len_alt = length($f[3]);
+                $f2_len{$key} = ($len_ref == $len_alt) ? $len_ref : abs($len_ref - $len_alt);
             }
-            count_col = count_ler = count_mut = total = 0
-            len_col = len_ler = len_mut = 0
+            close $fh2;
+
+            $count_col = $count_ler = $count_mut = $total = 0;
+            $len_col = $len_ler = $len_mut = 0;
         }
-        NR > 1 {
-            key = $1":"$2
-            gt = $target_col
-            col = col_gt[key]
-            ler = ler_gt[key]
 
-            # 优先用父母差异长度
-            this_len = (site_len[key] != "" ? site_len[key] : f2_len[key])
+        next if $. == 1;   # 跳过header
 
-            if (gt == "./.") next
+        my $key = "$F[0]:$F[1]";
+        my $gt  = $F[$target_col - 1];
+        my $col = $col_gt{$key};
+        my $ler = $ler_gt{$key};
 
-            if (gt == col) {
-                count_col++
-                len_col += this_len
-            } else if (gt == ler) {
-                count_ler++
-                len_ler += this_len
-            } else {
-                count_mut++
-                len_mut += this_len
-            }
-            total++
+        my $this_len = exists $site_len{$key} ? $site_len{$key} : $f2_len{$key};
+        next if $gt eq "./.";
+
+        if ($gt eq $col) {
+            $count_col++; $len_col += $this_len;
+        } elsif ($gt eq $ler) {
+            $count_ler++; $len_ler += $this_len;
+        } else {
+            $count_mut++; $len_mut += $this_len;
         }
+        $total++;
+
         END {
-            if (total > 0 && GENOME_SIZE > 0) {
-                col_ratio = count_col / total * 100
-                ler_ratio = count_ler / total * 100
-                mut_ratio = count_mut / total * 100
+            if ($total > 0 && $genome_size > 0) {
+                my $col_ratio = $count_col / $total * 100;
+                my $ler_ratio = $count_ler / $total * 100;
+                my $mut_ratio = $count_mut / $total * 100;
 
-                col_genome = len_col / GENOME_SIZE * 100
-                ler_genome = len_ler / GENOME_SIZE * 100
-                mut_genome = len_mut / GENOME_SIZE * 100
+                my $col_genome = $len_col / $genome_size * 100;
+                my $ler_genome = $len_ler / $genome_size * 100;
+                my $mut_genome = $len_mut / $genome_size * 100;
 
-                printf("%s\t%.4f\t%.6f\t%.4f\t%.6f\t%.4f\t%.6f\t%d\t%d\t%d\t%d\t%d\t%d\n", \
-                    sample, col_ratio, col_genome, ler_ratio, ler_genome, mut_ratio, mut_genome, \
-                    count_col, count_ler, count_mut, len_col, len_ler, len_mut)
+                printf("%s\t%.4f\t%.6f\t%.4f\t%.6f\t%.4f\t%.6f\t%d\t%d\t%d\t%d\t%d\t%d\n",
+                    $sample, $col_ratio, $col_genome,
+                    $ler_ratio, $ler_genome, $mut_ratio, $mut_genome,
+                    $count_col, $count_ler, $count_mut,
+                    $len_col, $len_ler, $len_mut);
             } else {
-                printf("%s\tNA\tNA\tNA\tNA\tNA\tNA\t0\t0\t0\t0\t0\t0\n", sample)
+                printf("%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n", $sample);
             }
         }
     ' F2_GT_matrix_with_header.tsv >> sample_ratio_tmp.tsv
@@ -355,42 +473,42 @@ tail -n +2 sample_ratio_summary.tsv | awk -F'\t' '{
 ```
 | 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | Mut型比例(%) | Mut基因组占比(%) | Col型位点数 | Ler型位点数 | Mut型位点数 | Col长度 | Ler长度 | Mut长度 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Sample_14 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
+| Sample_14 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
 | Sample_18 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_19 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 | 3 | 0 | 1 | 3 | 0 | 1 |
+| Sample_19 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
 | Sample_20 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_21 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 | 2 | 0 | 1 | 2 | 0 | 1 |
+| Sample_21 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
 | Sample_4 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_5 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_6 | 0.0000 | 0.000000 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0 | 1 | 0 | 0 | 1 | 0 |
-| Sample_7 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 | 3 | 0 | 1 | 3 | 0 | 1 |
-| Sample_8 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c41 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_c42 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 5 | 0 | 0 | 5 | 0 | 0 |
+| Sample_5 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Sample_7 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_8 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
+| Sample_c41 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_c42 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
 | Sample_c45 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 | 2 | 0 | 1 | 2 | 0 | 1 |
-| Sample_c47 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 | 4 | 0 | 1 | 4 | 0 | 1 |
-| Sample_c48 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_c51 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 | 4 | 0 | 1 | 4 | 0 | 1 |
-| Sample_c52 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_c54 | 100.0000 | 0.003884 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 6 | 0 | 0 | 6 | 0 | 0 |
-| Sample_c57 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_c61 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c62 | 83.3333 | 0.003237 | 0.0000 | 0.000000 | 16.6667 | 0.000647 | 5 | 0 | 1 | 5 | 0 | 1 |
-| Sample_c63 | 50.0000 | 0.000647 | 0.0000 | 0.000000 | 50.0000 | 0.000647 | 1 | 0 | 1 | 1 | 0 | 1 |
-| Sample_c64 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_c65 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 | 3 | 0 | 1 | 3 | 0 | 1 |
-| Sample_c66 | 33.3333 | 0.001295 | 33.3333 | 0.000647 | 33.3333 | 0.000647 | 1 | 1 | 1 | 2 | 1 | 1 |
+| Sample_c47 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_c48 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
+| Sample_c51 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_c52 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
+| Sample_c54 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 5 | 0 | 0 | 5 | 0 | 0 |
+| Sample_c57 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_c61 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
+| Sample_c62 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
+| Sample_c63 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
+| Sample_c64 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_c65 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
+| Sample_c66 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Sample_c73 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c81 | 80.0000 | 0.002589 | 0.0000 | 0.000000 | 20.0000 | 0.000647 | 4 | 0 | 1 | 4 | 0 | 1 |
-| Sample_c82 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_c81 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 | 3 | 0 | 1 | 3 | 0 | 1 |
+| Sample_c82 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
 | Sample_c83 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_c84 | 50.0000 | 0.000647 | 0.0000 | 0.000000 | 50.0000 | 0.000647 | 1 | 0 | 1 | 1 | 0 | 1 |
+| Sample_c84 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
 | Sample_c85 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c87 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_c88 | 80.0000 | 0.003237 | 0.0000 | 0.000000 | 20.0000 | 0.000647 | 4 | 0 | 1 | 5 | 0 | 1 |
-| Sample_c89 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 5 | 0 | 0 |
-| Sample_c90 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 100.0000 | 0.000647 | 0 | 0 | 1 | 0 | 0 | 1 |
-| Sample_c91 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
+| Sample_c87 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_c88 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 5 | 0 | 0 |
+| Sample_c89 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
+| Sample_c90 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Sample_c91 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
 | Sample_c92 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
 | Sample_c93 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
 | Sample_c94 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
