@@ -598,61 +598,35 @@ samtools index SRR611086_aln.sorted.bam
 samtools mpileup -aa -f ref_Pt.fa SRR611086_aln.sorted.bam > SRR611086_aln.pileup
 
 #计算每一个位点的得分，得分标准为：若 contig 序列与参考序列一致，则得分 +1，否则得分为 -1
-awk 'BEGIN { OFS="\t"; print "Position", "Score" }
-{
-  ref = toupper($3)
-  depth = $4
-  score = 0
-  if (depth == 0) {
-    print $2, 0
-    next
-  }
-  bases = $5
-  i = 1
-  while (i <= length(bases)) {
-    c = substr(bases, i, 1)
+perl -F'\t' -ane '
+BEGIN { print "Position\tScore\n" }
+$ref = uc($F[2]);
+$pos = $F[1];
+$depth = $F[3];
+$score = 0;
+if ($depth == 0) { print "$pos\t0\n"; next }
+$bases = $F[4];
+$i = 0;
+while ($i < length($bases)) {
+    $c = substr($bases,$i,1);
+    if ($c eq "." || $c eq ",") {
+        if ($i+1 < length($bases) && (substr($bases,$i+1,1) eq "+" || substr($bases,$i+1,1) eq "-")) {
+            $score -= 1;
+            $i += 2;
+            $lenstr = "";
+            while ($i < length($bases) && substr($bases,$i,1) =~ /\d/) { $lenstr .= substr($bases,$i,1); $i++ }
+            $indel_len = $lenstr+0;
+            $i += $indel_len;
+        } else { $score += 1; $i++ }
+    } elsif ($c eq "^") { $i += 2 }
+      elsif ($c eq "\$") { $i++ }  # 这里需要转义$
+      elsif (uc($c) =~ /[ACGTN]/) { $score -= 1; $i++ }
+      else { $i++ }
+}
+print "$pos\t$score\n";
+' SRR611086_aln.pileup > SRR611086_per_base_scores.txt
 
-    # 匹配参考碱基（正向 . 或 反向 ,）
-    if (c == "." || c == ",") {
-      # 看下一个字符是不是 + 或 -
-      if (i+1 <= length(bases) && (substr(bases, i+1, 1) == "+" || substr(bases, i+1, 1) == "-")) {
-        score -= 1
-        i++  # 跳过 . 或 ,
-        i++  # 跳过 + 或 -
-        lenstr = ""
-        while (i <= length(bases) && substr(bases, i, 1) ~ /[0-9]/) {
-          lenstr = lenstr substr(bases, i, 1)
-          i++
-        }
-        indel_len = lenstr + 0
-        i += indel_len  # 跳过 indel 的碱基
-      } else {
-        score += 1
-        i++
-      }
-    }
-    # 跳过^
-    else if (c == "^") {
-      i += 2
-    }
-    # 跳过$
-    else if (c == "$") {
-      i++
-    }
-    # 其他碱基（不匹配参考或匹配参考但不在 . , 中出现的情况）
-    else if (toupper(c) ~ /[ACGTN]/) {
-      score -= 1
-      i++
-    }
-    # 跳过其他符号
-    else {
-      i++
-    }
-  }
-  print $2, score
-}' SRR611086_aln.pileup > SRR611086_per_base_scores.txt
-
-awk 'NR>1 && $2 < 0 {print $0}' SRR611086_per_base_scores.txt > positions_below_zero.txt
+perl -ane 'print if $.==1 || $F[1]<0' SRR611086_per_base_scores_perl.txt > positions_below_zero.txt
 #28672   -6
 
 #SRR5216995

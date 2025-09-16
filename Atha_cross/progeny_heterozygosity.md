@@ -237,13 +237,12 @@ bcftools index -f ../Atha_cross.vcf.gz
 #与父母本比较
 bcftools view -R <(cut -f1,2 different_sites.tsv) ../Atha_cross.vcf.gz -Oz -o F2_informative.vcf.gz
 
-#排除类似异质性位点的假象
+#排除Mt\Nc中的相似性位点
 cp ~/data/plastid/genome/col0/genome.fa .
 faops some genome.fa <(echo 1; echo 2; echo 3; echo 4; echo 5) chr.fa
 faops some genome.fa <(echo Pt) Pt.fa
 faops some genome.fa <(echo Mt) Mt.fa
 
-#去除核/线粒体同源区域
 bwa index chr.fa
 bwa index Mt.fa
 bwa index Pt.fa
@@ -256,7 +255,9 @@ bedtools bamtobed -i Pt_vs_mt.bam > Pt_vs_mt.bed
 cat Pt_vs_nuclear.bed Pt_vs_mt.bed | bedtools sort -i - | bedtools merge -i - > Pt_homology.bed
 bcftools view -T ^Pt_homology.bed F2_informative.vcf.gz -Oz -o F2_filtered_homology.vcf.gz
 bcftools index -f F2_filtered_homology.vcf.gz
-
+```
+*
+```
 #稀有位点过滤 (<10% 样本)
 bcftools query -f '%CHROM\t%POS[\t%GT]\n' F2_filtered_homology.vcf.gz |
 perl -F'\t' -ane '
@@ -276,7 +277,8 @@ perl -F'\t' -ane '
 bcftools view -R common_sites.txt F2_filtered_homology.vcf.gz -Oz -o F2_common.vcf.gz
 bcftools index -f F2_common.vcf.gz
 
-# 成簇位点过滤 (<50bp)
+
+#成簇位点过滤 (<50bp)
 # 提取并转换位点
 bcftools query -f '%CHROM\t%POS\n' F2_common.vcf.gz | \
 perl -ane 'print "$F[0]\t" . ($F[1] - 1) . "\t$F[1]\n"' > sites.bed
@@ -303,23 +305,13 @@ bcftools view -R nonclustered_chrom_pos.txt F2_common.vcf.gz -Oz -o F2_noncluste
 bcftools index -f F2_noncluster.vcf.gz
 
 
-#排除测序或者 PCR  的偏向性错误（单碱基重复±2bp 过滤）
+#排除测序或者 PCR 的偏向性错误（单碱基重复±2bp过滤）
 grep -v "^>" Pt.fa | tr -d '\n' > Pt.seq.txt
 
-awk '{
-    seq=$0; pos=1;
-    while (match(seq, /(A{5,}|T{5,}|C{5,}|G{5,})/)) {
-        start=pos+RSTART-1;
-        end=start+RLENGTH-1;
-        print "Pt\t" start-1 "\t" end;
-        seq=substr(seq, RSTART+RLENGTH);
-        pos=start+RLENGTH;
-    }
-}' Pt.seq.txt > homopolymer.bed
 perl -ne '
     while (/(A{5,}|T{5,}|C{5,}|G{5,})/g) {
-        $start = $-[0];       # 0-based
-        $end   = $+[0];       # exclusive
+        $start = $-[0];
+        $end   = $+[0]; 
         print "Pt\t$start\t$end\n";
     }
 ' Pt.seq.txt > homopolymer.bed
@@ -336,8 +328,6 @@ echo -e "CHROM\tPOS\t$(cat opts_no_parents.tsv | cut -f1 | paste -sd '\t' -)" > 
 cat header.txt F2_GT_matrix.tsv > F2_GT_matrix_with_header.tsv
 
 bcftools query -f '%CHROM\t%POS\n' F2_highconf.vcf.gz > highconf_sites.list
-awk 'NR==FNR {a[$1":"$2]; next} ($1":"$2 in a)' highconf_sites.list different_sites_with_len.tsv > different_sites_with_len_highconf.tsv
-awk 'NR==FNR {a[$1":"$2]; next} ($1":"$2 in a)' highconf_sites.list F2_sites_ref_alt.tsv > F2_sites_ref_alt_highconf.tsv
 
 perl -F'\s+' -ane '
     BEGIN {
@@ -352,8 +342,6 @@ perl -F'\s+' -ane '
     $key = "$F[0]:$F[1]";
     print if $seen{$key};
 ' different_sites_with_len.tsv > different_sites_with_len_highconf_perl.tsv
-
-
 
 perl -F'\t' -ane '
     BEGIN {
