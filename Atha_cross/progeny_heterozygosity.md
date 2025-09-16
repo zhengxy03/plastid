@@ -256,7 +256,7 @@ cat Pt_vs_nuclear.bed Pt_vs_mt.bed | bedtools sort -i - | bedtools merge -i - > 
 bcftools view -T ^Pt_homology.bed F2_informative.vcf.gz -Oz -o F2_filtered_homology.vcf.gz
 bcftools index -f F2_filtered_homology.vcf.gz
 ```
-*
+* data filtering and processing
 ```
 #稀有位点过滤 (<10% 样本)
 bcftools query -f '%CHROM\t%POS[\t%GT]\n' F2_filtered_homology.vcf.gz |
