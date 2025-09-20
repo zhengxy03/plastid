@@ -58,7 +58,7 @@ cat ena_info.ascp.sh |
 ```
 cd ~/data/plastid/Atha_cross/
 
-export FOLD=8
+export FOLD=2
 export GENOME_SIZE=$(
     cat ~/data/plastid/genome/col0/chr.sizes |
         tsv-summarize --sum 2
