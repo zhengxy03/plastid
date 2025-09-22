@@ -47,12 +47,6 @@ for sample in $samples; do
         echo "警告: 缺少必要文件，跳过样本 $sample"
         continue
     fi
-
-    # 检查任务是否存在
-    if bjobs -w | grep -q "${sample}_chloro"; then
-        echo "任务已存在，跳过: $sample"
-        continue
-    fi
     
     # 创建临时目录和日志
     tmp_dir="$PROJECT_ROOT/$sample/tmp_scripts"
@@ -139,11 +133,10 @@ EOF
             exit 1
         fi
         
-        # 4. 提取叶绿体变异（核心修复：正确计算var_count）
+        # 4. 提取叶绿体变异
         echo '统计并提取叶绿体变异...' | tee -a '$log_file'
         bcftools view -r '$CHLORO_NAME' '$gatk_vcf_gz' > '$temp_vcf'
         
-        # 修复变量解析：使用正确的语法计算变异数
         var_count=\$(grep -v "^#" '$temp_vcf' | wc -l)
         echo "提取到的未压缩变异数: \$var_count" | tee -a '$log_file'
         
