@@ -591,410 +591,437 @@ ggsave("all_samples_combined.png", plot = big_plot,
 ```
 ![evaluation](../pic/all_samples_combined.png)
 
-# gene annotation
+# Residual reads analysis
+* pretreatment
 ```
-cd ~/zxy/plastid/evaluation/SRR616966_1/1_genome
+SAMPLE="SRR616966"
+FOLDS=(1 2 4 8 16 32 64)  # 与目录名中的fold值值完全匹配
+BASE_DIR="$HOME/zxy/plastid/evaluation"
+RESULT_DIR="$BASE_DIR/summary_results"
+mkdir -p $RESULT_DIR
 
-# 1️⃣ 生成染色体长度文件
-samtools faidx genome.fa
-cut -f1,2 genome.fa.fai > genome.chrom.sizes
+# 初始化汇总表格（调整统计项，移除高拷贝基因相关）
+echo -e "fold\t总残留reads数\t转座元件reads数\t转座元件占比(%)\t多比对序列总数\t转座子多比对数\t转座子多比对占比(%)\t核平均read长度\t核chr1-read数\t核chr2-read数\t核chr3-read数\t核chr4-read数\t核chr5-read数\t线粒体平均覆盖度\t串联重复reads数\t串联重复占比(%)\t其他核残留reads数\t其他核残留占比(%)\t核-叶绿体嵌合体数\t核-线粒体嵌合体数\t叶绿体-线粒体嵌合体数\t总嵌合体数" > $RESULT_DIR/summary_stats.tsv
 
-
-
-# 核基因组（染色体 1-5）
-perl -ne 'chomp; @f=split(/\t/,$_); print "$f[0]\t0\t$f[1]\n" if $f[0]=~/^[1-5]$/;' genome.chrom.sizes > nuclear_regions.bed
-
-# 线粒体
-perl -ne 'chomp; @f=split(/\t/,$_); print "$f[0]\t0\t$f[1]\n" if $f[0] eq "Mt";' genome.chrom.sizes > mito_regions.bed
-
-# 叶绿体（可选）
-perl -ne 'chomp; @f=split(/\t/,$_); print "$f[0]\t0\t$f[1]\n" if $f[0] eq "Pt";' genome.chrom.sizes > chloroplast_regions.bed
-
-# 3️⃣ 提取落在核/线粒体的残留 reads
-cd ~/zxy/plastid/evaluation/SRR616966_1/3_bwa
-
-samtools view -b -L ../1_genome/nuclear_regions.bed R.sort.bam > nuclear_reads.bam
-samtools view -b -L ../1_genome/mito_regions.bed R.sort.bam > mito_reads.bam
-
-# 4️⃣ BAM 转 BED
-bedtools bamtobed -i nuclear_reads.bam > nuclear_reads.bed
-bedtools bamtobed -i mito_reads.bam > mito_reads.bed
-
-# 5️⃣ 可选：提取 FASTA 用于序列分析
-bedtools getfasta -fi ../1_genome/genome.fa -bed nuclear_reads.bed -fo nuclear_reads.fa
-bedtools getfasta -fi ../1_genome/genome.fa -bed mito_reads.bed -fo mito_reads.fa
-
-# 核基因组残留 reads
-samtools view -b -L ../1_genome/nuclear_regions.bed R.sort.bam > nuclear_reads.bam
-
-# 线粒体残留 reads
-samtools view -b -L ../1_genome/mito_regions.bed R.sort.bam > mito_reads.bam
-
-# 查看数量
-samtools view -c nuclear_reads.bam
-samtools view -c mito_reads.bam
-
-bedtools bamtobed -i nuclear_reads.bam > nuclear_reads.bed
-bedtools bamtobed -i mito_reads.bam > mito_reads.bed
-
-#统计残留 reads 的覆盖区域特征
-# 1. 统计核基因组残留reads的染色体分布
-perl -ne 'chomp; @f=split(/\t/); $count{$f[0]}++; END{print "$_\t$count{$_}\n" for sort keys %count}' nuclear_reads.bed
-
-# 2. 计算核基因组残留reads的平均长度
-perl -ne 'chomp; @f=split(/\t/); $len=$f[2]-$f[1]; $sum+=$len; $count++; END{printf "平均长度: %.2f\n", $sum/$count}' nuclear_reads.bed
-
-# 3. 分析线粒体残留reads的覆盖密度（输出每1bp的覆盖度）
-bedtools genomecov -i mito_reads.bed -g ~/zxy/plastid/evaluation/SRR616966_1/1_genome/genome.chrom.sizes -d | perl -ne 'chomp; @f=split(/\t/); print "$_\n" if $f[0] eq "Mt"' > mito_coverage.txt
-
-#三、筛选多位置比对的 reads）
-# 1. 提取核残留reads中存在多位置比对的reads ID
-samtools view -f 256 nuclear_reads.bam | perl -ne 'chomp; @f=split(/\t/); print "$f[0]\n"' | sort | uniq > nuclear_multimap_reads.txt
-
-# 2. 从FASTA中提取这些候选嵌合序列
-samtools fasta nuclear_reads.bam > nuclear_reads_with_id.fa
-perl -ne 'BEGIN {
-    open my $fh, "<", "nuclear_multimap_reads.txt" or die "Can\"t open ID file: $!";
-    while (<$fh>) {
-        chomp;
-        $ids{$_} = 1;
-    }
-    close $fh;
-}
-if (/^>(\S+)\/\d+$/) {  # 匹配并移除/1或/2后缀
-    $keep = exists $ids{$1} ? 1 : 0;
-}
-print if $keep;' nuclear_reads_with_id.fa > nuclear_chimeric_candidates.fa
-
-#处理重复序列（以转座子为主）
-cd ~/zxy/plastid/evaluation/SRR616966_1/1_genome
-
-# 处理TAIR10_Transposable_Elements.txt（根据实际列名调整）
-# 列名对应：
-# 1: Transposon_Name（转座子ID）
-# 2: orientation_is_5prime（方向相关，暂不使用）
-# 3: Transposon_min_Start（起始位置）
-# 4: Transposon_max_End（终止位置）
-# 5: Transposon_Family（家族）
-# 6: Transposon_Super_Family（超家族，如LTR/Gypsy）
-
-perl -ne 'chomp;
-          next if /^Transposon_Name/;  # 跳过表头行
-          @f = split(/\t/);
-          # 提取关键信息（处理染色体ID：从转座子名称中提取，如AT1TE...→染色体1）
-          $te_id = $f[0];
-          if ($te_id =~ /^AT(\d)TE/) {  # 从ID中提取染色体号（AT1TE→1，AT2TE→2）
-              $chr = $1;
-          } else {
-              next;  # 跳过非核染色体的转座子（如线粒体/叶绿体上的）
-          }
-          $start = $f[2] - 1;  # 转换为BED的0起始格式
-          $end = $f[3];
-          $family = $f[5];
-          $super_family = $f[6];
-          $type = "$super_family($family)";  # 合并类型信息
-          # 仅保留1-5号染色体
-          if ($chr =~ /^[1-5]$/) {
-              print "$chr\t$start\t$end\t$type\t$te_id\n";
-          }' TAIR10_Transposable_Elements.txt > nuclear_te.bed
-
-# 验证转换结果（查看前5行）
-head nuclear_te.bed
-
-# 后续分析步骤与之前一致，直接使用nuclear_te.bed即可
-# 1️⃣ 统计转座元件类型分布
-cut -f4 nuclear_te.bed | cut -d'(' -f1 | sort | uniq -c | awk '{print $2 "\t" $1}' > te_superfamily_counts.txt
-echo "转座元件超家族分布："
-cut -f4 nuclear_te.bed | cut -d'(' -f1 | sort | uniq -c | awk '{print $2 "\t" $1}' > te_superfamily_counts.txt
-
-# 2️⃣ 提取核残留reads中位于转座元件区域的reads
-cd ~/zxy/plastid/evaluation/SRR616966_1/3_bwa
-
-# 转座元件区域的reads
-bedtools intersect -abam nuclear_reads.bam -b ../1_genome/nuclear_te.bed -u > nuclear_te_reads.bam
-
-# 非转座元件区域的reads
-bedtools intersect -abam nuclear_reads.bam -b ../1_genome/nuclear_te.bed -v > nuclear_non_te_reads.bam
-
-# 3️⃣ 统计转座元件相关reads的基础数据
-echo "核基因组总残留reads：$(samtools view -c nuclear_reads.bam)" > te_stats.txt
-echo "转座元件区域reads：$(samtools view -c nuclear_te_reads.bam)" >> te_stats.txt
-echo "转座元件区域reads占比：$(echo "scale=2; $(samtools view -c nuclear_te_reads.bam)/$(samtools view -c nuclear_reads.bam)*100" | bc)%" >> te_stats.txt
-
-# 4️⃣ 分析多位置比对序列中来自转座元件的比例
-bedtools bamtobed -i nuclear_reads.bam | grep -Ff nuclear_multimap_reads.txt > nuclear_multimap.bed
-bedtools intersect -a nuclear_multimap.bed -b ../1_genome/nuclear_te.bed -wa -wb | cut -f4 | sort | uniq > te_multimap_ids.txt
-
-echo "多位置比对序列总数：$(wc -l < nuclear_multimap_reads.txt)" >> te_stats.txt
-echo "其中来自转座元件的多比对序列：$(wc -l < te_multimap_ids.txt)" >> te_stats.txt
-echo "转座元件导致的多比对占比：$(echo "scale=2; $(wc -l < te_multimap_ids.txt)/$(wc -l < nuclear_multimap_reads.txt)*100" | bc)%" >> te_stats.txt
-
-# 5️⃣ 不同超家族转座元件的reads覆盖深度
-cd ~/zxy/plastid/evaluation/SRR616966_1/3_bwa
-
-# 1️⃣ 重新提取超家族并替换名称中的斜杠（避免路径问题）
-cut -f4 ../1_genome/nuclear_te.bed | sed 's/^(//; s/)$//' | sort | uniq | sed 's/\//_/g' > te_superfamilies_sanitized.txt
-
-# 显示处理后的超家族名称（不含斜杠）
-echo "处理后的超家族名称（已替换斜杠）："
-cat te_superfamilies_sanitized.txt
-
-# 2️⃣ 计算不同超家族的平均覆盖深度（修正版）
-# 2️⃣ 重新计算超家族覆盖深度（基于覆盖碱基数）
-> te_superfamily_depth_final.txt
-echo -e "超家族\t转座元件数量\t总长度(bp)\t覆盖碱基数\t平均深度" > te_superfamily_depth_final.txt
-
-while read sanitized_sf; do
-    [ -z "$sanitized_sf" ] && continue
+# 检查所有fold目录及3_bwa子目录中的BAM文件
+for fold in "${FOLDS[@]}"; do
+    FOLD_DIR="$BASE_DIR/${SAMPLE}_${fold}"
+    BWA_DIR="$FOLD_DIR/3_bwa"  # BAM文件所在的子目录
     
-    # 还原原始超家族名称
-    original_sf=$(echo "$sanitized_sf" | sed 's/_/\//g')
-    
-    # 生成该超家族的BED文件
-    grep "($original_sf)" ../1_genome/nuclear_te.bed > ../1_genome/te_${sanitized_sf}.bed
-    te_count=$(wc -l < ../1_genome/te_${sanitized_sf}.bed)
-    
-    if [ $te_count -gt 0 ]; then
-        # 计算该超家族所有转座元件的总长度
-        total_length=$(awk '{sum += $3 - $2} END {print sum}' ../1_genome/te_${sanitized_sf}.bed)
-        
-        # 计算被reads覆盖的总碱基数（-d输出每个碱基的覆盖度）
-        covered_bases=$(bedtools coverage -a ../1_genome/te_${sanitized_sf}.bed \
-                                         -b nuclear_te_reads.bam \
-                                         -d | awk '{sum += $7} END {print sum}')
-        
-        # 计算平均深度（覆盖碱基数 / 总长度）
-        if [ $total_length -gt 0 ] && [ $covered_bases -gt 0 ]; then
-            avg_depth=$(echo "scale=4; $covered_bases / $total_length" | bc)
-        else
-            avg_depth=0
-        fi
-    else
-        total_length=0
-        covered_bases=0
-        avg_depth=0
+    if [ ! -d "$FOLD_DIR" ]; then
+        echo "错误：未找到目录 $FOLD_DIR，请检查目录命名是否正确"
+        exit 1
     fi
     
-    # 保留2位小数输出
-    printf "%s\t%d\t%d\t%d\t%.2f\n" \
-           "$original_sf" $te_count $total_length $covered_bases $avg_depth >> te_superfamily_depth_final.txt
+    # 检查3_bwa子目录中是否有R.sort.bam
+    if [ ! -f "$BWA_DIR/R.sort.bam" ]; then
+        echo "错误：$BWA_DIR 中未找到 R.sort.bam 文件"
+        exit 1
+    fi
+done
+
+# 选择fold=1的基因组数据作为共享资源
+SHARED_GENOME_DIR="$BASE_DIR/${SAMPLE}_1/1_genome"
+
+# 确保基因组索引存在
+if [ ! -f "$SHARED_GENOME_DIR/genome.fa.fai" ]; then
+    echo "生成基因组索引..."
+    samtools faidx "$SHARED_GENOME_DIR/genome.fa"
+fi
+
+# 确保区域BED文件存在
+if [ ! -f "$SHARED_GENOME_DIR/nuclear_regions.bed" ]; then
+    echo "生成区域BED文件..."
+    cut -f1,2 "$SHARED_GENOME_DIR/genome.fa.fai" > "$SHARED_GENOME_DIR/genome.chrom.sizes"
+    perl -ne 'chomp; @f=split(/\t/); print "$f[0]\t0\t$f[1]\n" if $f[0]=~/^[1-5]$/' "$SHARED_GENOME_DIR/genome.chrom.sizes" > "$SHARED_GENOME_DIR/nuclear_regions.bed"
+    perl -ne 'chomp; @f=split(/\t/); print "$f[0]\t0\t$f[1]\n" if $f[0] eq "Mt"' "$SHARED_GENOME_DIR/genome.chrom.sizes" > "$SHARED_GENOME_DIR/mito_regions.bed"
+    perl -ne 'chomp; @f=split(/\t/); print "$f[0]\t0\t$f[1]\n" if $f[0] eq "Pt"' "$SHARED_GENOME_DIR/genome.chrom.sizes" > "$SHARED_GENOME_DIR/chloroplast_regions.bed"
+fi
+
+# 确保转座元件和串联重复注释存在
+if [ ! -f "$SHARED_GENOME_DIR/nuclear_te.bed" ]; then
+    echo "生成转座元件注释..."
+    perl -ne 'chomp;
+              next if /^Transposon_Name/;
+              @f = split(/\t/);
+              $te_id = $f[0];
+              if ($te_id =~ /^AT(\d)TE/) { $chr = $1; }
+              else { next; }
+              $start = $f[2] - 1;
+              $end = $f[3];
+              $family = $f[5];
+              $super_family = $f[6];
+              $type = "$super_family($family)";
+              if ($chr =~ /^[1-5]$/) {
+                  print "$chr\t$start\t$end\t$type\t$te_id\n";
+              }' "$SHARED_GENOME_DIR/TAIR10_Transposable_Elements.txt" > "$SHARED_GENOME_DIR/nuclear_te.bed"
+fi
+
+# 添加串联重复区域注释
+if [ ! -f "$SHARED_GENOME_DIR/nuclear_tandem.bed" ]; then
+    echo "警告：未找到串联重复注释文件，将使用空文件替代"
+    touch "$SHARED_GENOME_DIR/nuclear_tandem.bed"
+    # trf "$SHARED_GENOME_DIR/genome.fa" 2 5 7 80 10 50 500 -h -ngs > "$SHARED_GENOME_DIR/tandem_repeats.txt"
+    # perl trf.pl "$SHARED_GENOME_DIR/tandem_repeats.txt" > "$SHARED_GENOME_DIR/nuclear_tandem.bed"
+fi
+
+if [ ! -f "$SHARED_GENOME_DIR/combined_ref_db.nhr" ]; then
+    echo "构建BLAST数据库..."
+    makeblastdb -in "$SHARED_GENOME_DIR/genome.fa" -dbtype nucl -out "$SHARED_GENOME_DIR/combined_ref_db" -parse_seqids
+fi
+```
+
+* 转座子分析
+```
+for fold in "${FOLDS[@]}"; do
+    echo "----- 处理fold $fold（目录：${SAMPLE}_${fold}） -----"
+    FOLD_DIR="$BASE_DIR/${SAMPLE}_${fold}"
+    WORK_DIR="$FOLD_DIR/3_bwa"  # 工作目录和BAM文件目录一致
+    mkdir -p $WORK_DIR
+    cd $WORK_DIR
+
+    # 从3_bwa子目录提取残留reads（BAM文件就在当前目录）
+    samtools view -b -L "$SHARED_GENOME_DIR/nuclear_regions.bed" "$WORK_DIR/R.sort.bam" > nuclear_reads.bam
+    samtools view -b -L "$SHARED_GENOME_DIR/mito_regions.bed" "$WORK_DIR/R.sort.bam" > mito_reads.bam
+    samtools index nuclear_reads.bam
+    samtools index mito_reads.bam
+
+    # 转成bed文件用于覆盖分析
+    bedtools bamtobed -i nuclear_reads.bam > nuclear_reads.bed
+    bedtools bamtobed -i mito_reads.bam > mito_reads.bed
+
+    # 统计残留reads的覆盖区域特征
+    # 1. 核基因组残留reads的染色体分布
+    perl -ne 'chomp; @f=split(/\t/); $count{$f[0]}++; END{
+        foreach my $chr (1..5) {
+            print "$chr\t".($count{$chr}//0)."\n";
+        }
+    }' nuclear_reads.bed > $WORK_DIR/nuclear_chrom_dist.txt
     
-    # 清理临时文件
-    rm -f ../1_genome/te_${sanitized_sf}.bed
-done < te_superfamilies_sanitized.txt
+    chr1=$(grep "^1" $WORK_DIR/nuclear_chrom_dist.txt | cut -f2)
+    chr2=$(grep "^2" $WORK_DIR/nuclear_chrom_dist.txt | cut -f2)
+    chr3=$(grep "^3" $WORK_DIR/nuclear_chrom_dist.txt | cut -f2)
+    chr4=$(grep "^4" $WORK_DIR/nuclear_chrom_dist.txt | cut -f2)
+    chr5=$(grep "^5" $WORK_DIR/nuclear_chrom_dist.txt | cut -f2)
+    chr1=${chr1:-0}; chr2=${chr2:-0}; chr3=${chr3:-0}; chr4=${chr4:-0}; chr5=${chr5:-0}
+    
+    # 2. 核基因组残留reads的平均长度
+    avg_length=$(perl -ne 'chomp; @f=split(/\t/); $len=$f[2]-$f[1]; $sum+=$len; $count++; END{printf "%.2f", $sum/$count}' nuclear_reads.bed)
+    
+    # 3. 线粒体残留reads的平均覆盖度
+    bedtools genomecov -i mito_reads.bed -g "$SHARED_GENOME_DIR/genome.chrom.sizes" -d | \
+        perl -ne 'chomp; @f=split(/\t/); 
+                 if($f[0] eq "Mt") { $sum += $f[2]; $count++ }
+                 END{ printf "%.2f", $count>0 ? $sum/$count : 0 }' > $WORK_DIR/mito_avg_coverage.txt
+    mito_avg_cov=$(cat $WORK_DIR/mito_avg_coverage.txt)
 
-# 3️⃣ 显示最终结果
-echo -e "\n最终转座元件超家族深度分析结果："
-cat te_superfamily_depth_final.txt
+    # 转座子筛选分析
+    samtools view -f 256 nuclear_reads.bam | perl -ne 'chomp; @f=split(/\t/); print "$f[0]\n"' | sort | uniq > nuclear_multimap_reads.txt
+    
+    bedtools intersect -abam nuclear_reads.bam -b "$SHARED_GENOME_DIR/nuclear_te.bed" -u > nuclear_te_reads.bam
+    bedtools intersect -abam nuclear_reads.bam -b "$SHARED_GENOME_DIR/nuclear_te.bed" -v > nuclear_non_te_reads.bam
+    
+    bedtools bamtobed -i nuclear_reads.bam | grep -Ff nuclear_multimap_reads.txt > nuclear_multimap.bed
+    bedtools intersect -a nuclear_multimap.bed -b "$SHARED_GENOME_DIR/nuclear_te.bed" -wa -wb | cut -f4 | sort | uniq > te_multimap_ids.txt
+    
+    # 计算统计值
+    total_reads=$(samtools view -c nuclear_reads.bam)
+    te_reads=$(samtools view -c nuclear_te_reads.bam)
+    te_ratio=$(echo "scale=4; $te_reads/$total_reads*100" | bc | xargs printf "%.2f")
+    multi_total=$(wc -l < nuclear_multimap_reads.txt)
+    multi_te=$(wc -l < te_multimap_ids.txt)
+    multi_te_ratio=$(echo "scale=4; $multi_te/$multi_total*100" | bc | xargs printf "%.2f")
+    
+    # 保存到临时文件
+    echo -e "$fold\t$total_reads\t$te_reads\t$te_ratio\t$multi_total\t$multi_te\t$multi_te_ratio\t$avg_length\t$chr1\t$chr2\t$chr3\t$chr4\t$chr5\t$mito_avg_cov" > $WORK_DIR/repeat_stats.tmp
+done
+```
+* 串联重复分析
+```
+for fold in "${FOLDS[@]}"; do
+    echo "----- 处理fold $fold（目录：${SAMPLE}_${fold}） -----"
+    FOLD_DIR="$BASE_DIR/${SAMPLE}_${fold}"
+    WORK_DIR="$FOLD_DIR/3_bwa"
+    mkdir -p $WORK_DIR
+    cd $WORK_DIR
 
+    # 检查必要的中间文件
+    if [ ! -f "nuclear_reads.bam" ] || [ ! -f "nuclear_non_te_reads.bam" ]; then
+        echo "错误：未找到重复序列分析的中间文件，请先运行第一个循环"
+        exit 1
+    fi
 
+    # 1. 串联重复区域的reads数（排除已归类为转座子的reads）
+    bedtools intersect -abam nuclear_non_te_reads.bam -b "$SHARED_GENOME_DIR/nuclear_tandem.bed" -u > nuclear_tandem_reads.bam
+    tandem_reads=$(samtools view -c nuclear_tandem_reads.bam)
+    total_reads=$(samtools view -c nuclear_reads.bam)
+    te_reads=$(samtools view -c nuclear_te_reads.bam)
+    
+    # 计算占比（确保保留两位小数）
+    tandem_ratio=$(echo "scale=4; $tandem_reads/$total_reads*100" | bc | xargs printf "%.2f")
+    
+    # 2. 其他核残留reads数（未被上述类别包含）
+    other_reads=$((total_reads - te_reads - tandem_reads))
+    
+    # 其他核残留占比 = 100% - 转座子占比 - 串联重复占比（确保保留两位小数）
+    te_ratio=$(grep -w "$fold" $WORK_DIR/repeat_stats.tmp | cut -f4)
+    other_ratio=$(echo "scale=4; 100 - $te_ratio - $tandem_ratio" | bc | xargs printf "%.2f")
+    
+    # 保存到临时文件
+    echo -e "$tandem_reads\t$tandem_ratio\t$other_reads\t$other_ratio" > $WORK_DIR/other_nuclear_stats.tmp
+done
+```
+* 嵌合体序列分析
+```
+for fold in "${FOLDS[@]}"; do
+    echo "----- 处理fold $fold（目录：${SAMPLE}_${fold}） -----"
+    FOLD_DIR="$BASE_DIR/${SAMPLE}_${fold}"
+    WORK_DIR="$FOLD_DIR/3_bwa"
+    mkdir -p $WORK_DIR
+    cd $WORK_DIR
 
+    # 检查必要的中间文件（新增nuclear_tandem_reads.bam的检查，确保串联重复分析已完成）
+    if [ ! -f "nuclear_multimap_reads.txt" ] || [ ! -f "te_multimap_ids.txt" ] || [ ! -f "nuclear_tandem_reads.bam" ]; then
+        echo "错误：未找到转座子/串联重复分析的中间文件，请先运行前两个循环"
+        exit 1
+    fi
 
-#
-# ==============================================
-# 第一步：修复BAM文件头信息（解决SQ lines缺失问题）
-# ==============================================
-cd ~/zxy/plastid/evaluation/SRR616966_1/3_bwa
+    # 1：提取串联重复相关的多比对reads ID（排除串联重复干扰）
+    # 先将串联重复reads转为BED格式，再筛选其中的多比对reads
+    bedtools bamtobed -i nuclear_tandem_reads.bam > nuclear_tandem.bed
+    # 从总多比对reads中筛选出串联重复相关的ID
+    grep -Ff nuclear_multimap_reads.txt nuclear_tandem.bed | cut -f4 | sort | uniq > tandem_multimap_ids.txt
+    rm -f nuclear_tandem.bed  # 清理临时文件
 
-# 1. 生成参考基因组索引
-samtools faidx ../1_genome/genome.fa
+    # 2：筛选「非转座元件+非串联重复」的多比对ID
+    comm -23 <(sort nuclear_multimap_reads.txt | uniq | sed 's/[[:space:]]//g') \
+             <(sort -u <(cat te_multimap_ids.txt tandem_multimap_ids.txt)) \  # 合并转座子+串联重复的多比对ID
+             > non_te_tandem_multimap_ids_clean.txt  # 最终用于嵌合体分析的候选ID
+    rm -f tandem_multimap_ids.txt  # 清理临时文件
 
-# 2. 创建序列字典
-awk 'BEGIN{print "@HD\tVN:1.5\tSO:coordinate"} {print "@SQ\tSN:"$1"\tLN:"$2}' ../1_genome/genome.fa.fai > genome.dict
+    # 步骤3：提取潜在嵌合体序列
+    samtools view -h nuclear_reads.bam > full_reads.sam
+    perl -ne '
+        BEGIN {
+            open(my $fh, "<", "non_te_tandem_multimap_ids_clean.txt") or die $!;
+            while (my $line = <$fh>) {
+                chomp $line;
+                $ids{$line} = 1 if $line ne "";
+            }
+            close $fh;
+        }
+        if ($. == 1 || /^@/) { print; next; }
+        my @fields = split(/\t/);
+        print if exists $ids{$fields[0]};
+    ' full_reads.sam > target_reads.sam
+    samtools fasta target_reads.sam > non_te_tandem_multimap.fasta  # 修改输出文件名，避免与旧文件混淆
+    rm -f full_reads.sam target_reads.sam non_te_tandem_multimap_ids_clean.txt  # 清理临时文件
 
-# 3. 下载Picard工具（如已存在可跳过）
-wget https://github.com/broadinstitute/picard/releases/download/3.1.1/picard-3.1.1.jar -O picard.jar
+    # 步骤4：BLAST筛选真实嵌合体
+    blastn -query non_te_tandem_multimap.fasta \
+           -db "$SHARED_GENOME_DIR/combined_ref_db" \
+           -evalue 1e-20 \
+           -outfmt "6 qseqid sseqid pident length evalue" \
+           -max_target_seqs 3 \
+           -num_threads 4 > blast_temp.txt
 
-# 4. 用Picard重建BAM头信息
-java -jar picard.jar AddOrReplaceReadGroups \
-    I=nuclear_reads.bam \
-    O=nuclear_reads_fixed.bam \
-    R=../1_genome/genome.fa \
-    ID=SRR616966 \
-    LB=library1 \
-    PL=illumina \
-    PU=unit1 \
-    SM=sample1
-
-# 5. 为修复后的BAM创建索引
-samtools index nuclear_reads_fixed.bam
-
-# 6. 验证修复结果（必须显示@SQ开头的行）
-samtools view -H nuclear_reads_fixed.bam | grep '@SQ' | head -3
-
-
-# ==============================================
-# 第二步：构建BLAST数据库
-# ==============================================
-cd ../1_genome
-makeblastdb -in genome.fa -dbtype nucl -out combined_ref_db -parse_seqids
-cd ../3_bwa
-
-
-# ==============================================
-# 第三步：筛选候选ID（排除转座元件）
-# ==============================================
-comm -23 <(sort nuclear_multimap_reads.txt | uniq | sed 's/[[:space:]]//g') \
-         <(sort te_multimap_ids.txt | uniq | sed 's/[[:space:]]//g') \
-         > non_te_multimap_ids_clean.txt
-
-# 查看候选ID数量
-echo "候选ID数量：$(wc -l < non_te_multimap_ids_clean.txt)"
-
-
-# ==============================================
-# 第四步：提取潜在嵌合体序列（兼容低版本samtools）
-# ==============================================
-# 1. 导出完整SAM文件（含头信息）
-samtools view -h nuclear_reads_fixed.bam > full_reads.sam
-
-# 2. 筛选目标ID的reads
-awk 'NR==1 || /^@/; BEGIN{while((getline < "non_te_multimap_ids_clean.txt")>0)ids[$1]=1} $1 in ids' full_reads.sam > target_reads.sam
-
-# 3. 转换为FASTA
-samtools fasta target_reads.sam > non_te_multimap.fasta
-
-# 4. 清理临时文件
-rm -f full_reads.sam target_reads.sam
-
-# 验证提取结果
-echo "提取的潜在嵌合体序列数：$(grep -c '^>' non_te_multimap.fasta)"
-
-
-# ==============================================
-# 第五步：BLAST筛选真实嵌合体
-# ==============================================
-blastn -query non_te_multimap.fasta \
-       -db ../1_genome/combined_ref_db \
-       -evalue 1e-20 \
-       -outfmt "6 qseqid sseqid pident length evalue" \
-       -max_target_seqs 2 \
-       -num_threads 4 > blast_temp.txt
-
-perl -ne 'chomp; @f=split(/\t/); next if @f<5;
-         $id=$f[0]; $chr=$f[1]; $p=$f[2]; $e=$f[4];
-         
-         # 基因组分类：核(nuc)/叶绿体(cp)/线粒体(mt)
-         $g = ($chr=~/^[1-5]$/) ? "nuc" :
-              ($chr eq "Pt") ? "cp" :
-              ($chr eq "Mt") ? "mt" : "other";
-         next if $g eq "other";  # 排除未知基因组
-         
-         # 保留符合基本质量的比对（可根据数据调整）
-         if($p>=70 && $e<=1e-10) {
-             push @{$h{$id}}, $g;  # 存储基因组类型
-         }
-         
-         END{
-             for my $id (keys %h) {
-                 my %unique = map { $_ => 1 } @{$h{$id}};  # 去重基因组类型
-                 my @types = keys %unique;
-                 
-                 # 筛选跨两种及以上基因组的嵌合体
-                 if(@types >= 2) {
-                     # 三种目标类型：核-叶绿体、核-线粒体、叶绿体-线粒体
-                     if( ($types[0] eq "nuc" && $types[1] eq "cp") ||
-                         ($types[0] eq "cp" && $types[1] eq "nuc") ) {
-                         print "$id\n";  # 核-叶绿体
-                     } elsif( ($types[0] eq "nuc" && $types[1] eq "mt") ||
-                              ($types[0] eq "mt" && $types[1] eq "nuc") ) {
-                         print "$id\n";  # 核-线粒体
-                     } elsif( ($types[0] eq "cp" && $types[1] eq "mt") ||
-                              ($types[0] eq "mt" && $types[1] eq "cp") ) {
-                         print "$id\n";  # 叶绿体-线粒体
+    # 步骤5：筛选嵌合体ID
+    perl -ne 'chomp; @f=split(/\t/); next if @f<5;
+             $id=$f[0]; $chr=$f[1]; $p=$f[2]; $e=$f[4];
+             $g = ($chr=~/^[1-5]$/) ? "nuc" :
+                  ($chr eq "Pt") ? "cp" :
+                  ($chr eq "Mt") ? "mt" : "other";
+             next if $g eq "other";
+             if($p>=70 && $e<=1e-10) { push @{$h{$id}}, $g; }
+             END{
+                 for my $id (keys %h) {
+                     my %unique = map { $_ => 1 } @{$h{$id}};
+                     my @types = keys %unique;
+                     if(@types >= 2) {
+                         if( ($types[0] eq "nuc" && $types[1] eq "cp") || ($types[0] eq "cp" && $types[1] eq "nuc") ) {
+                             print "$id\n";
+                         } elsif( ($types[0] eq "nuc" && $types[1] eq "mt") || ($types[0] eq "mt" && $types[1] eq "nuc") ) {
+                             print "$id\n";
+                         } elsif( ($types[0] eq "cp" && $types[1] eq "mt") || ($types[0] eq "mt" && $types[1] eq "cp") ) {
+                             print "$id\n";
+                         }
                      }
                  }
-             }
-         }' blast_temp.txt > candidate_chimeric_ids.txt
+             }' blast_temp.txt > candidate_chimeric_ids.txt
+    rm -f blast_temp.txt  # 清理临时文件
 
-# 查看所有类型候选嵌合体数量
-echo "所有类型嵌合体候选ID数量：$(wc -l < candidate_chimeric_ids.txt)"
+    # 步骤6：提取并验证嵌合体序列
+    sed 's/\/[12]$//' candidate_chimeric_ids.txt > candidate_ids_fixed.txt
+    samtools view -h nuclear_reads.bam > full_reads2.sam
+    perl -ne '
+        BEGIN {
+            open(my $fh, "<", "candidate_ids_fixed.txt") or die $!;
+            while (my $line = <$fh>) {
+                chomp $line;
+                $ids{$line} = 1 if $line ne "";
+            }
+            close $fh;
+        }
+        if ($. == 1 || /^@/) { print; next; }
+        my @fields = split(/\t/);
+        print if exists $ids{$fields[0]};
+    ' full_reads2.sam > target_reads2.sam
+    samtools fasta target_reads2.sam > true_chimeric_seqs.fasta
+    rm -f full_reads2.sam target_reads2.sam candidate_ids_fixed.txt candidate_chimeric_ids.txt
 
-# 1. 去除候选ID中的/1和/2后缀，与BAM中的ID格式统一
-sed 's/\/[12]$//' candidate_chimeric_ids.txt > candidate_ids_fixed.txt
+    # 步骤7：统计嵌合体类型
+    blastn -query true_chimeric_seqs.fasta \
+           -db "$SHARED_GENOME_DIR/combined_ref_db" \
+           -evalue 1e-10 \
+           -outfmt "6 qseqid sseqid length pident evalue" \
+           -max_target_seqs 3 \
+           -num_threads 4 > chimeric_blast_verify.txt
 
-# 2. 重新提取序列（使用修复后的ID列表）
-samtools view -h nuclear_reads_fixed.bam > full_reads2.sam
-
-# 3. 筛选目标ID的reads（此时ID格式已匹配）
-awk 'NR==1 || /^@/; BEGIN{while((getline < "candidate_ids_fixed.txt")>0)ids[$1]=1} $1 in ids' full_reads2.sam > target_reads2.sam
-
-# 4. 转换为FASTA
-samtools fasta target_reads2.sam > true_chimeric_seqs.fasta
-
-# 5. 清理临时文件
-rm -f full_reads2.sam target_reads2.sam candidate_ids_fixed.txt
-
-# 验证结果
-echo "修复ID格式后提取的序列数：$(grep -c '^>' true_chimeric_seqs.fasta)"
-
-
-# 1. BLAST验证嵌合体序列（确保比对准确性）
-blastn -query true_chimeric_seqs.fasta \
-       -db ../1_genome/combined_ref_db \
-       -evalue 1e-10 \
-       -outfmt "6 qseqid sseqid length pident evalue" \
-       -max_target_seqs 2 \
-       -num_threads 4 > chimeric_blast_verify.txt
-
-# 2. 统计三种嵌合体类型（核-叶绿体/核-线粒体/叶绿体-线粒体）及特征
-perl -ne 'chomp; @f=split(/\t/); next if @f<5;
-         $id=$f[0]; $chr=$f[1]; $len=$f[2]; $p=$f[3];
-         
-         # 基因组分类
-         $g = ($chr=~/^[1-5]$/) ? "nuc" :
-              ($chr eq "Pt") ? "cp" :
-              ($chr eq "Mt") ? "mt" : "other";
-         next if $g eq "other";
-         
-         # 累积长度和相似性数据
-         $len_sum{$id}{$g} += $len;
-         $total_len{$id} += $len;
-         $p_sum{$id} += $p;
-         $p_cnt{$id}++;
-         
-         END{
-             print "嵌合体ID\t类型\t核片段长度\t叶绿体片段长度\t线粒体片段长度\t平均相似性(%)\n";
-             my ($nuc_cp, $nuc_mt, $cp_mt) = (0,0,0);
-             
-             for my $id (keys %len_sum) {
-                 my $nuc = $len_sum{$id}{nuc} // 0;
-                 my $cp = $len_sum{$id}{cp} // 0;
-                 my $mt = $len_sum{$id}{mt} // 0;
-                 next if $nuc+$cp+$mt == 0;  # 过滤无效数据
-                 
-                 my $avg_p = sprintf("%.1f", $p_sum{$id}/$p_cnt{$id});
-                 my $type;
-                 
-                 # 判断嵌合体类型
-                 if ($nuc>0 && $cp>0) {
-                     $type = "核-叶绿体";
-                     $nuc_cp++;
-                 } elsif ($nuc>0 && $mt>0) {
-                     $type = "核-线粒体";
-                     $nuc_mt++;
-                 } elsif ($cp>0 && $mt>0) {
-                     $type = "叶绿体-线粒体";
-                     $cp_mt++;
-                 } else {
-                     next;  # 仅属于一种基因组的排除
+    perl -ne 'chomp; @f=split(/\t/); next if @f<5;
+             $id=$f[0]; $chr=$f[1]; $len=$f[2]; $p=$f[3];
+             $g = ($chr=~/^[1-5]$/) ? "nuc" :
+                  ($chr eq "Pt") ? "cp" :
+                  ($chr eq "Mt") ? "mt" : "other";
+             next if $g eq "other";
+             $len_sum{$id}{$g} += $len;
+             $p_sum{$id} += $p;
+             $p_cnt{$id}++;
+             END{
+                 my ($nuc_cp, $nuc_mt, $cp_mt) = (0,0,0);
+                 for my $id (keys %len_sum) {
+                     my $nuc = $len_sum{$id}{nuc} // 0;
+                     my $cp = $len_sum{$id}{cp} // 0;
+                     my $mt = $len_sum{$id}{mt} // 0;
+                     next if $nuc+$cp+$mt == 0;
+                     
+                     if ($nuc>0 && $cp>0) {
+                         $nuc_cp++;
+                     } elsif ($nuc>0 && $mt>0) {
+                         $nuc_mt++;
+                     } elsif ($cp>0 && $mt>0) {
+                         $cp_mt++;
+                     }
                  }
-                 
-                 print "$id\t$type\t$nuc\t$cp\t$mt\t$avg_p\n";
-             }
-             
-             # 汇总统计
-             my $total = $nuc_cp + $nuc_mt + $cp_mt;
-             print "\n===== 嵌合体类型汇总 =====\n";
-             print "核-叶绿体：$nuc_cp 条 (".($total>0?sprintf("%.1f",$nuc_cp/$total*100):0)."%)\n";
-             print "核-线粒体：$nuc_mt 条 (".($total>0?sprintf("%.1f",$nuc_mt/$total*100):0)."%)\n";
-             print "叶绿体-线粒体：$cp_mt 条 (".($total>0?sprintf("%.1f",$cp_mt/$total*100):0)."%)\n";
-             print "总计：$total 条\n";
-         }' chimeric_blast_verify.txt > chimeric_type_stat.txt
+                 my $total = $nuc_cp + $nuc_mt + $cp_mt;
+                 print "$nuc_cp\t$nuc_mt\t$cp_mt\t$total";
+             }' chimeric_blast_verify.txt > $WORK_DIR/chimera_stats.tmp
+    rm -f chimeric_blast_verify.txt true_chimeric_seqs.fasta non_te_tandem_multimap.fasta  
+done
 
-# 3. 查看最终统计结果
-echo "===== 嵌合体分析最终结果 ====="
-cat chimeric_type_stat.txt
+# 汇总结果
+for fold in "${FOLDS[@]}"; do
+    WORK_DIR="$BASE_DIR/${SAMPLE}_${fold}/3_bwa"
+    repeat_stats=$(cat $WORK_DIR/repeat_stats.tmp)
+    other_nuclear_stats=$(cat $WORK_DIR/other_nuclear_stats.tmp)
+    chimera_stats=$(cat $WORK_DIR/chimera_stats.tmp)
+    echo -e "$repeat_stats\t$other_nuclear_stats\t$chimera_stats" >> $RESULT_DIR/summary_stats.tsv
+    rm -f $WORK_DIR/repeat_stats.tmp $WORK_DIR/other_nuclear_stats.tmp $WORK_DIR/chimera_stats.tmp
+done
+
+
+```
+* 可视化
+```
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(scales)
+
+# 设置中文字体支持
+if (.Platform$OS.type == "windows") {
+  windowsFonts(
+    sans = windowsFont("SimHei"),
+    serif = windowsFont("SimSun")
+  )
+} else if (Sys.info()["sysname"] == "Darwin") {  # macOS
+  theme_update(text = element_text(family = "Heiti TC"))
+} else {  # Linux
+  theme_update(text = element_text(family = "WenQuanYi Micro Hei", size = 12))
+}
+
+# 读取数据
+result_file <- "~/zxy/plastid/evaluation/summary_results/summary_stats.tsv"
+df <- read_tsv(result_file, show_col_types = FALSE)
+
+# 数据处理：转换为长格式并整理标签（注意使用反引号处理特殊字符）
+plot_data <- df %>%
+  select(
+    fold = fold,
+    `转座元件占比(%)`,
+    `串联重复占比(%)`,
+    `其他核残留占比(%)`
+  ) %>%
+  pivot_longer(
+    cols = -fold,
+    names_to = "repeat_type",
+    values_to = "proportion"
+  ) %>%
+  mutate(
+    fold = factor(fold, levels = unique(fold)),  # 保持fold原始顺序
+    repeat_type = factor(repeat_type, 
+                        levels = c("转座元件占比(%)", "串联重复占比(%)", "其他核残留占比(%)")) %>%
+      # 去除重复的"占比(%)"文字，使标签更简洁
+      recode(
+        "转座元件占比(%)" = "转座元件",
+        "串联重复占比(%)" = "串联重复",
+        "其他核残留占比(%)" = "其他核残留"
+      )
+  )
+
+# 定义颜色和参数
+colors <- c(
+  "转座元件" = "black",
+  "串联重复" = "gray60",
+  "其他核残留" = "white"
+)
+bar_width <- 0.6
+dodge_width <- 0.6
+
+# 绘制柱状图
+p <- ggplot(plot_data, 
+           aes(x = fold, y = proportion, fill = repeat_type, group = repeat_type)) +
+  geom_bar(stat = "identity", 
+           position = position_dodge(width = dodge_width),
+           color = "black",
+           width = bar_width) +
+  # 添加数值标签
+  geom_text(aes(label = sprintf("%.2f%%", proportion)),
+            position = position_dodge(width = dodge_width),
+            vjust = -0.5,
+            size = 2.5,
+            fontface = "bold") +
+  scale_fill_manual(values = colors, name = "核残留reads类型") +
+  scale_y_continuous(
+    labels = percent_format(scale = 1, accuracy = 0.1),
+    limits = c(0, max(plot_data$proportion) * 1.2),
+    expand = c(0, 0)
+  ) +
+  labs(
+    x = "Fold",
+    y = "Proportion"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 12, color = "black"),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11),
+    legend.position = "right",
+    plot.margin = margin(10, 10, 10, 10, "mm")
+  )
+
+# 保存图形
+ggsave("repeat_proportion_by_fold.png",
+       plot = p,
+       width = 12,
+       height = 8,
+       dpi = 300,
+       bg = "white")
 
 ```
 # col assembly
