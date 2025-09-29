@@ -1,0 +1,12 @@
+Highest_frequency_locus,有效变异数,高频变异数(≥10%),中高频变异数(5%-10%),低频变异数(1%-5%),平均异质性频率(%),最高异质性频率(%),平均总reads数(×),最高频率位点(Pt:POS),Associated_gene,Gene_description,Strand,Gene_ID,Gene_coordinate_range,Chloroplast_region
+111,56,4,8,39,3.62,16.61,1523.3,111,Non-coding,No_associated_gene,None,None,None,LSC (Large Single Copy)
+28570,55,3,11,36,3.72,26.51,1429.5,28570,Non-coding,No_associated_gene,None,None,None,LSC (Large Single Copy)
+136734,63,8,8,42,10.00,100.00,830.8,136734,Unknown_gene,No_description,-,transcript:ATCG01210.1,136147-137637,IRa (Inverted Repeat a)
+28672,53,3,7,37,4.95,90.19,1048.1,28672,Non-coding,No_associated_gene,None,None,None,LSC (Large Single Copy)
+36321,56,7,8,36,5.65,100.00,919.3,36321,Non-coding,No_associated_gene,None,None,None,LSC (Large Single Copy)
+66699,55,5,3,37,3.18,15.64,2679.9,66699,Non-coding,No_associated_gene,None,None,None,LSC (Large Single Copy)
+4870,152,70,7,44,41.72,100.00,4958.9,4870,Non-coding,No_associated_gene,None,None,None,LSC (Large Single Copy)
+110081,278,6,15,47,1.32,23.08,2158.3,110081,ycf1,No_description,+,gene:ATCG01000,109405-110436,IRb (Inverted Repeat b)
+67163,53,3,7,33,3.47,29.82,2219.5,67163,Non-coding,No_associated_gene,None,None,None,LSC (Large Single Copy)
+46614,50,4,6,36,3.49,12.74,764.1,46614,Non-coding,No_associated_gene,None,None,None,LSC (Large Single Copy)
+125867,90,0,2,62,1.88,8.50,2035.0,125867,ycf1,No_description,-,gene:ATCG01130,123884-129244,IRa (Inverted Repeat a)
