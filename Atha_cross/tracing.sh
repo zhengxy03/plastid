@@ -60,13 +60,13 @@ for SAMPLE_DIR in "${SAMPLES[@]}"; do
 
         # 判断来源
         if (( $(echo "$mom_f>0" | bc -l) )) && (( $(echo "$dad_f==0" | bc -l) )); then
-            origin="母本偏向"
+            origin="母本"
         elif (( $(echo "$dad_f>0" | bc -l) )) && (( $(echo "$mom_f==0" | bc -l) )); then
-            origin="父本偏向"
+            origin="父本"
         elif (( $(echo "$mom_f>0" | bc -l) )) && (( $(echo "$dad_f>0" | bc -l) )); then
-            origin="混合偏向（父母均含）"
+            origin="混合（父母均含）"
         else
-            origin="自发变异（父母均无）"
+            origin="自发变异"
         fi
 
         echo -e "${chr}\t${pos}\t${ref}\t${alt}\t${hetfreq}\t${depth}\t${mom_f}\t${dad_f}\t${origin}" >> "$OUT_FILE"

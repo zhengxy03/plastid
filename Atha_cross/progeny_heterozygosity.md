@@ -215,21 +215,27 @@ bash frequency.sh
 | Sample_c95 | 106 | 9 | 18 | 79 | 4.63 | 83.70 | 3651.7 | Pt:28672 |
 
 ```R
+#!/usr/bin/env Rscript
+
 # ===============================
-# 统计叶绿体异质性来源比例并绘图
+# 🌿 Plastid 异质性来源比例统计
 # ===============================
+
 library(dplyr)
 library(ggplot2)
 library(readr)
+library(scales)
 
 # -------------------------------
-# 基本路径
+# 基本路径设置
 # -------------------------------
 workdir <- "/share/home/wangq/zxy/plastid/Atha_cross"
 
-# 获取所有子代样本目录（排除父母和混样）
+# 获取所有子代样本（排除父母与混合样本）
 all_samples <- list.dirs(workdir, full.names = FALSE, recursive = FALSE)
-exclude_samples <- c("Sample_Col_G","Sample_Ler_XL_4","Sample_l2c2","Sample_l2l3","Sample_l4c1","Sample_l4l3","Sample_c1c2")
+exclude_samples <- c("Sample_Col_G", "Sample_Ler_XL_4",
+                     "Sample_l2c2", "Sample_l2l3",
+                     "Sample_l4c1", "Sample_l4l3", "Sample_c1c2")
 samples <- setdiff(all_samples, exclude_samples)
 
 cat("有效子代样本数:", length(samples), "\n")
@@ -241,57 +247,94 @@ all_stats <- data.frame()
 
 for (sample in samples) {
   infile <- file.path(workdir, sample, "chloroplast_hetero_parent_ratio.txt")
-  
+
   if (!file.exists(infile)) {
     cat("⚠️ 文件不存在，跳过:", infile, "\n")
     next
   }
-  
+
   df <- read.delim(infile, header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
-  
+
   if (nrow(df) == 0) {
     cat("⚠️ 文件为空，跳过:", infile, "\n")
     next
   }
-  
-  df$Sample <- sample  # 添加样本列
+
+  df$Sample <- sample
   all_stats <- bind_rows(all_stats, df)
 }
 
 if (nrow(all_stats) == 0) {
-  stop("❌ 没有有效数据可统计，请检查文件路径和内容！")
+  stop("❌ 没有有效数据可统计，请检查输入文件！")
 }
 
 # -------------------------------
-# 汇总各类来源数量和比例
+# 清洗“来源判断”列
+# -------------------------------
+all_stats$来源判断 <- gsub("（.*", "", all_stats$来源判断)  # 去掉括号及后面的文字
+all_stats$来源判断 <- gsub("🧬", "", all_stats$来源判断)    # 去掉emoji
+all_stats$来源判断 <- trimws(all_stats$来源判断)            # 去掉多余空格
+
+# -------------------------------
+# 统计每类来源的 reads 总和与比例
 # -------------------------------
 summary_stats <- all_stats %>%
-  group_by(Sample, `来源判断`) %>%
-  summarise(count = n(), .groups = "drop") %>%
+  group_by(Sample, 来源判断) %>%
+  summarise(total_reads = sum(`总reads数`, na.rm = TRUE), .groups = "drop") %>%
   group_by(Sample) %>%
-  mutate(proportion = count / sum(count)) %>%
+  mutate(sum_reads = sum(total_reads, na.rm = TRUE)) %>%
+  mutate(proportion = ifelse(sum_reads > 0, total_reads / sum_reads, NA)) %>%
   ungroup()
+
+# -------------------------------
+# 汇总比例表
+# -------------------------------
+report <- summary_stats %>%
+  group_by(Sample) %>%
+  summarise(
+    母本 = round(sum(proportion[来源判断 == "母本"], na.rm = TRUE), 3),
+    父本 = round(sum(proportion[来源判断 == "父本"], na.rm = TRUE), 3),
+    混合 = round(sum(proportion[来源判断 == "混合"], na.rm = TRUE), 3),
+    自发突变 = round(sum(proportion[来源判断 == "自发变异"], na.rm = TRUE), 3)
+  ) %>%
+  mutate(总和 = 母本 + 父本 + 混合 + 自发突变)
+
+# -------------------------------
+# 输出表格
+# -------------------------------
+out_table <- file.path(workdir, "chloroplast_hetero_summary.csv")
+write.csv(report, out_table, row.names = FALSE)
+cat("✅ 已保存结果表:", out_table, "\n")
 
 # -------------------------------
 # 绘制堆积柱状图
 # -------------------------------
-ggplot(summary_stats, aes(x = Sample, y = proportion, fill = `来源判断`)) +
-  geom_bar(stat = "identity") +
-  scale_y_continuous(labels = scales::percent) +
-  labs(
-       x = "sample",
-       y = "proportion",
-       fill = "来源类型") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-        axis.text.y = element_text(size = 10),
-        plot.title = element_text(hjust = 0.5))
+summary_stats$来源判断 <- factor(
+  summary_stats$来源判断,
+  levels = c("母本", "父本", "混合", "自发变异")
+)
 
-# -------------------------------
-# 保存统计表和图像
-# -------------------------------
-write.csv(summary_stats, file.path(workdir, "chloroplast_hetero_summary.csv"), row.names = FALSE)
-ggsave(file.path(workdir, "chloroplast_hetero_summary_plot.png"), width = 10, height = 6)
+p <- ggplot(summary_stats, aes(x = Sample, y = proportion, fill = 来源判断)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(
+    title = "叶绿体异质性来源 reads 占比统计",
+    x = "样本",
+    y = "reads 占比",
+    fill = "来源类型"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "top"
+  )
+
+out_plot <- file.path(workdir, "chloroplast_hetero_summary_plot.png")
+ggsave(out_plot, p, width = 12, height = 6, dpi = 300)
+
+
 ```
 ![source](./results/chloroplast_hetero_summary_plot.png)
 ## calculate the proportion of sources for variant sites
