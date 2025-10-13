@@ -165,7 +165,7 @@ EOF
         
         # 清理临时文件
         rm -f '$PROJECT_ROOT/$sample/3_bwa/chloroplast_temp.bam'
-        rm -f '$PROJECT_ROOT/$sample/3_bwa/chloroplast_Pt_sorted.bam'*
+
         rm -f '$gatk_vcf_gz' '$gatk_vcf_gz.tbi'
         rm -f '$temp_vcf' '$filtered_temp_vcf.gz' '$filtered_temp_vcf.gz.tbi'
         rm -rf '$tmp_dir'
