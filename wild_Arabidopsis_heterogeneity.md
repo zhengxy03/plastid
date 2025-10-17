@@ -131,7 +131,7 @@ rsync -avP \
 | Alt-1       | SRX973020 | ILLUMINA | PAIRED |         | SRR1946337 | 24,312,469 | 4.53G |
 # Symlink
 ```
-export FOLD=8
+export FOLD=2
 export GENOME_SIZE=$(
     cat ~/data/plastid/genome/col0/chr.sizes |
         tsv-summarize --sum 2

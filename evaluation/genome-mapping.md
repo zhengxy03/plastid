@@ -493,7 +493,6 @@ library(patchwork)
 library(stringr)
 library(scales)
 
-# 样本顺序
 ordered_samples <- c(
   'SRR616966::Col-0',
   'SRR611086::Col-0',
@@ -511,13 +510,11 @@ sample_mapping <- tibble(
   Label = ordered_samples
 )
 
-# 颜色和染色体顺序
 colors <- c("Nc" = "black", "Pt" = "gray60", "Mt" = "white")
 chrom_order <- c("Nc", "Pt", "Mt")
 bar_width <- 0.4
 dodge_width <- 0.35
 
-# 读取所有 _folds.tsv 文件
 all_tsv <- list.files(pattern = "_folds\\.tsv$")
 all_sample_plots <- list()
 
@@ -531,10 +528,9 @@ for (srr in sample_mapping$SRR) {
   
   df <- read_tsv(file, show_col_types = FALSE)
   
-  # 强制染色体顺序
   df$chrom <- factor(df$chrom, levels = chrom_order)
   
-  # 图1：Mapped bases
+  #Mapped bases
   p1 <- ggplot(df, aes(x = factor(Fold), y = bases / 1e6, fill = chrom, group = chrom)) +
     geom_bar(stat = "identity", position = position_dodge(width = dodge_width),
              color = "black", width = bar_width) +
@@ -552,8 +548,8 @@ for (srr in sample_mapping$SRR) {
       plot.title = element_text(hjust = 0.5, size = 14)
     )
   
-  # 图3：Proportion of genome，直接用 covRate
-  p3 <- ggplot(df, aes(x = factor(Fold), y = covRate, fill = chrom, group = chrom)) +
+  #covRate
+  p2 <- ggplot(df, aes(x = factor(Fold), y = covRate, fill = chrom, group = chrom)) +
     geom_bar(stat = "identity", position = position_dodge(width = dodge_width),
              color = "black", width = bar_width) +
     scale_fill_manual(values = colors, breaks = chrom_order, name = "Genome") +
@@ -570,20 +566,16 @@ for (srr in sample_mapping$SRR) {
       axis.ticks = element_line(color = "black"),
       plot.title = element_text(hjust = 0.5, size = 14)
     )
-  
-  # 组合两张图，共用图例
-  row_plot <- (p1 | p3) + plot_layout(guides = "collect")
+
+  row_plot <- (p1 | p2) + plot_layout(guides = "collect")
   all_sample_plots[[label]] <- row_plot
 }
 
-# 按指定顺序排列样本
 plots_in_order <- all_sample_plots[ordered_samples[ordered_samples %in% names(all_sample_plots)]]
 
-# 每个样本一行纵向堆叠
-big_plot <- wrap_plots(plots_in_order, ncol = 1)
+all_plot <- wrap_plots(plots_in_order, ncol = 1)
 
-# 保存图片
-ggsave("all_samples_combined.png", plot = big_plot,
+ggsave("all_samples_combined.png", plot = all_plot,
        width = 16,
        height = 4 * length(plots_in_order),
        limitsize = FALSE)
@@ -592,7 +584,7 @@ ggsave("all_samples_combined.png", plot = big_plot,
 ![evaluation](../pic/all_samples_combined.png)
 
 # Residual reads analysis
-* pretreatment
+* preparation
 ```
 SAMPLE="SRR616966"
 FOLDS=(1 2 4 8 16 32 64)
@@ -600,8 +592,7 @@ BASE_DIR="$HOME/zxy/plastid/evaluation"
 RESULT_DIR="$BASE_DIR/summary_results"
 mkdir -p $RESULT_DIR
 
-# 初始化汇总表格（删除嵌合体相关列）
-echo -e "fold\t总残留reads数\t转座元件reads数\t转座元件占比(%)\t多比对序列总数\t转座子多比对数\t转座子多比对占比(%)\t核平均read长度\t核chr1-read数\t核chr2-read数\t核chr3-read数\t核chr4-read数\t核chr5-read数\t线粒体平均覆盖度\t串联重复reads数\t串联重复占比(%)\t其他核残留reads数\t其他核残留占比(%)" > $RESULT_DIR/summary_stats.tsv
+echo -e "fold\t总残留reads数\t转座元件reads数\t转座元件占比(%)\t串联重复reads数\t串联重复占比(%)\t其他核残留reads数\t其他核残留占比(%)" > $RESULT_DIR/summary_stats.tsv
 
 # 检查目录与bam文件
 for fold in "${FOLDS[@]}"; do
@@ -627,8 +618,6 @@ if [ ! -f "$SHARED_GENOME_DIR/nuclear_regions.bed" ]; then
     echo "生成区域BED文件..."
     cut -f1,2 "$SHARED_GENOME_DIR/genome.fa.fai" > "$SHARED_GENOME_DIR/genome.chrom.sizes"
     perl -ne 'chomp; @f=split(/\t/); print "$f[0]\t0\t$f[1]\n" if $f[0]=~/^[1-5]$/' "$SHARED_GENOME_DIR/genome.chrom.sizes" > "$SHARED_GENOME_DIR/nuclear_regions.bed"
-    perl -ne 'chomp; @f=split(/\t/); print "$f[0]\t0\t$f[1]\n" if $f[0] eq "Mt"' "$SHARED_GENOME_DIR/genome.chrom.sizes" > "$SHARED_GENOME_DIR/mito_regions.bed"
-    perl -ne 'chomp; @f=split(/\t/); print "$f[0]\t0\t$f[1]\n" if $f[0] eq "Pt"' "$SHARED_GENOME_DIR/genome.chrom.sizes" > "$SHARED_GENOME_DIR/chloroplast_regions.bed"
 fi
 
 if [ ! -f "$SHARED_GENOME_DIR/nuclear_te.bed" ]; then
@@ -637,116 +626,51 @@ if [ ! -f "$SHARED_GENOME_DIR/nuclear_te.bed" ]; then
               next if /^Transposon_Name/;
               @f = split(/\t/);
               $te_id = $f[0];
-              if ($te_id =~ /^AT(\d)TE/) { $chr = $1; }
-              else { next; }
+              if ($te_id =~ /^AT(\d)TE/) { $chr = $1; } else { next; }
               $start = $f[2] - 1;
               $end = $f[3];
-              $family = $f[5];
-              $super_family = $f[6];
-              $type = "$super_family($family)";
-              if ($chr =~ /^[1-5]$/) {
-                  print "$chr\t$start\t$end\t$type\t$te_id\n";
-              }' "$SHARED_GENOME_DIR/TAIR10_Transposable_Elements.txt" > "$SHARED_GENOME_DIR/nuclear_te.bed"
+              print "$chr\t$start\t$end\t$f[5]\t$te_id\n";
+              ' "$SHARED_GENOME_DIR/TAIR10_Transposable_Elements.txt" > "$SHARED_GENOME_DIR/nuclear_te.bed"
 fi
 
 if [ ! -f "$SHARED_GENOME_DIR/nuclear_tandem.bed" ]; then
     echo "警告：未找到串联重复注释文件，将使用空文件替代"
     touch "$SHARED_GENOME_DIR/nuclear_tandem.bed"
+    # trf "$SHARED_GENOME_DIR/genome.fa" 2 5 7 80 10 50 500 -h -ngs > "$SHARED_GENOME_DIR/tandem_repeats.txt"
+    # perl trf.pl "$SHARED_GENOME_DIR/tandem_repeats.txt" > "$SHARED_GENOME_DIR/nuclear_tandem.bed"
 fi
 ```
-
-* 转座子分析
+* TE & Tandem repeat 
 ```
 for fold in "${FOLDS[@]}"; do
-    echo "----- 处理fold $fold（目录：${SAMPLE}_${fold}） -----"
+    echo "----- 处理 fold $fold -----"
     FOLD_DIR="$BASE_DIR/${SAMPLE}_${fold}"
     WORK_DIR="$FOLD_DIR/3_bwa"
-    mkdir -p $WORK_DIR
     cd $WORK_DIR
 
+    # 提取核基因组reads
     samtools view -b -L "$SHARED_GENOME_DIR/nuclear_regions.bed" "$WORK_DIR/R.sort.bam" > nuclear_reads.bam
-    samtools view -b -L "$SHARED_GENOME_DIR/mito_regions.bed" "$WORK_DIR/R.sort.bam" > mito_reads.bam
-    samtools index nuclear_reads.bam
-    samtools index mito_reads.bam
 
-    bedtools bamtobed -i nuclear_reads.bam > nuclear_reads.bed
-    bedtools bamtobed -i mito_reads.bam > mito_reads.bed
-
-    # 核基因组分布
-    perl -ne 'chomp; @f=split(/\t/); $count{$f[0]}++; END{
-        foreach my $chr (1..5) { print "$chr\t".($count{$chr}//0)."\n"; }
-    }' nuclear_reads.bed > $WORK_DIR/nuclear_chrom_dist.txt
-    
-    chr1=$(grep "^1" nuclear_chrom_dist.txt | cut -f2); chr1=${chr1:-0}
-    chr2=$(grep "^2" nuclear_chrom_dist.txt | cut -f2); chr2=${chr2:-0}
-    chr3=$(grep "^3" nuclear_chrom_dist.txt | cut -f2); chr3=${chr3:-0}
-    chr4=$(grep "^4" nuclear_chrom_dist.txt | cut -f2); chr4=${chr4:-0}
-    chr5=$(grep "^5" nuclear_chrom_dist.txt | cut -f2); chr5=${chr5:-0}
-
-    # 平均长度
-    avg_length=$(perl -ne 'chomp; @f=split(/\t/); $len=$f[2]-$f[1]; $sum+=$len; $count++; END{printf "%.2f", $sum/$count}' nuclear_reads.bed)
-
-    # 线粒体覆盖度
-    bedtools genomecov -i mito_reads.bed -g "$SHARED_GENOME_DIR/genome.chrom.sizes" -d | \
-        perl -ne 'chomp; @f=split(/\t/); 
-                 if($f[0] eq "Mt") { $sum += $f[2]; $count++ }
-                 END{ printf "%.2f", $count>0 ? $sum/$count : 0 }' > mito_avg_coverage.txt
-    mito_avg_cov=$(cat mito_avg_coverage.txt)
-
-    # 转座子与多比对统计
-    samtools view -f 256 nuclear_reads.bam | awk '{print $1}' | sort | uniq > nuclear_multimap_reads.txt
+    # 转座子reads
     bedtools intersect -abam nuclear_reads.bam -b "$SHARED_GENOME_DIR/nuclear_te.bed" -u > nuclear_te_reads.bam
-    bedtools intersect -abam nuclear_reads.bam -b "$SHARED_GENOME_DIR/nuclear_te.bed" -v > nuclear_non_te_reads.bam
-    bedtools bamtobed -i nuclear_reads.bam | grep -Ff nuclear_multimap_reads.txt > nuclear_multimap.bed
-    bedtools intersect -a nuclear_multimap.bed -b "$SHARED_GENOME_DIR/nuclear_te.bed" -wa -wb | cut -f4 | sort | uniq > te_multimap_ids.txt
-    
+
+    # 串联重复reads（去除TE后再比对）
+    bedtools intersect -abam nuclear_reads.bam -b "$SHARED_GENOME_DIR/nuclear_te.bed" -v | \
+    bedtools intersect -abam - -b "$SHARED_GENOME_DIR/nuclear_tandem.bed" -u > nuclear_tandem_reads.bam
+
+    # 计算数量
     total_reads=$(samtools view -c nuclear_reads.bam)
     te_reads=$(samtools view -c nuclear_te_reads.bam)
-    te_ratio=$(echo "scale=4; $te_reads/$total_reads*100" | bc | xargs printf "%.2f")
-    multi_total=$(wc -l < nuclear_multimap_reads.txt)
-    multi_te=$(wc -l < te_multimap_ids.txt)
-    multi_te_ratio=$(echo "scale=4; $multi_te/$multi_total*100" | bc | xargs printf "%.2f")
-
-    echo -e "$fold\t$total_reads\t$te_reads\t$te_ratio\t$multi_total\t$multi_te\t$multi_te_ratio\t$avg_length\t$chr1\t$chr2\t$chr3\t$chr4\t$chr5\t$mito_avg_cov" > repeat_stats.tmp
-done
-```
-* 串联重复分析
-```
-for fold in "${FOLDS[@]}"; do
-    echo "----- 处理fold $fold（目录：${SAMPLE}_${fold}） -----"
-    FOLD_DIR="$BASE_DIR/${SAMPLE}_${fold}"
-    WORK_DIR="$FOLD_DIR/3_bwa"
-    cd $WORK_DIR
-
-    if [ ! -f "nuclear_reads.bam" ] || [ ! -f "nuclear_non_te_reads.bam" ]; then
-        echo "错误：未找到重复序列分析的中间文件，请先运行转座子分析"
-        exit 1
-    fi
-
-    bedtools intersect -abam nuclear_non_te_reads.bam -b "$SHARED_GENOME_DIR/nuclear_tandem.bed" -u > nuclear_tandem_reads.bam
     tandem_reads=$(samtools view -c nuclear_tandem_reads.bam)
-    total_reads=$(samtools view -c nuclear_reads.bam)
-    te_reads=$(samtools view -c nuclear_te_reads.bam)
-    
-    # 计算占比（确保保留两位小数）
-    tandem_ratio=$(echo "scale=4; $tandem_reads/$total_reads*100" | bc | xargs printf "%.2f")
     other_reads=$((total_reads - te_reads - tandem_reads))
-    
-    te_ratio=$(grep -w "$fold" repeat_stats.tmp | cut -f4)
+
+    # 计算比例
+    te_ratio=$(echo "scale=4; $te_reads/$total_reads*100" | bc | xargs printf "%.2f")
+    tandem_ratio=$(echo "scale=4; $tandem_reads/$total_reads*100" | bc | xargs printf "%.2f")
     other_ratio=$(echo "scale=4; 100 - $te_ratio - $tandem_ratio" | bc | xargs printf "%.2f")
-    
-    # 保存到临时文件
-    echo -e "$tandem_reads\t$tandem_ratio\t$other_reads\t$other_ratio" > other_nuclear_stats.tmp
-done
-```
-* 汇总
-```
-for fold in "${FOLDS[@]}"; do
-    WORK_DIR="$BASE_DIR/${SAMPLE}_${fold}/3_bwa"
-    repeat_stats=$(cat $WORK_DIR/repeat_stats.tmp)
-    other_nuclear_stats=$(cat $WORK_DIR/other_nuclear_stats.tmp)
-    echo -e "$repeat_stats\t$other_nuclear_stats" >> $RESULT_DIR/summary_stats.tsv
-    rm -f $WORK_DIR/repeat_stats.tmp $WORK_DIR/other_nuclear_stats.tmp
+
+    # 写入结果
+    echo -e "$fold\t$total_reads\t$te_reads\t$te_ratio\t$tandem_reads\t$tandem_ratio\t$other_reads\t$other_ratio" >> $RESULT_DIR/summary_stats.tsv
 done
 ```
 * 可视化
@@ -757,23 +681,9 @@ library(readr)
 library(tidyr)
 library(scales)
 
-# 设置中文字体支持
-if (.Platform$OS.type == "windows") {
-  windowsFonts(
-    sans = windowsFont("SimHei"),
-    serif = windowsFont("SimSun")
-  )
-} else if (Sys.info()["sysname"] == "Darwin") {  # macOS
-  theme_update(text = element_text(family = "Heiti TC"))
-} else {  # Linux
-  theme_update(text = element_text(family = "WenQuanYi Micro Hei", size = 12))
-}
-
-# 读取数据
 result_file <- "~/zxy/plastid/evaluation/summary_results/summary_stats.tsv"
 df <- read_tsv(result_file, show_col_types = FALSE)
 
-# 数据处理：转换为长格式并整理标签（注意使用反引号处理特殊字符）
 plot_data <- df %>%
   select(
     fold = fold,
@@ -787,48 +697,45 @@ plot_data <- df %>%
     values_to = "proportion"
   ) %>%
   mutate(
-    fold = factor(fold, levels = unique(fold)),  # 保持fold原始顺序
-    repeat_type = factor(repeat_type, 
-                        levels = c("转座元件占比(%)", "串联重复占比(%)", "其他核残留占比(%)")) %>%
-      # 去除重复的"占比(%)"文字，使标签更简洁
+    fold = factor(fold, levels = unique(fold)),
+    repeat_type = factor(repeat_type,
+                         levels = c("转座元件占比(%)", "串联重复占比(%)", "其他核残留占比(%)")) %>%
       recode(
-        "转座元件占比(%)" = "转座元件",
-        "串联重复占比(%)" = "串联重复",
-        "其他核残留占比(%)" = "其他核残留"
+        "转座元件占比(%)" = "Transposon",
+        "串联重复占比(%)" = "Tandem repeat",
+        "其他核残留占比(%)" = "Other nuclear residuals"
       )
   )
 
-# 定义颜色和参数
 colors <- c(
-  "转座元件" = "black",
-  "串联重复" = "gray60",
-  "其他核残留" = "white"
+  "Transposon" = "black",
+  "Tandem repeat" = "gray60",
+  "Other nuclear residuals" = "white"
 )
+
 bar_width <- 0.6
 dodge_width <- 0.6
 
-# 绘制柱状图
 p <- ggplot(plot_data, 
            aes(x = fold, y = proportion, fill = repeat_type, group = repeat_type)) +
   geom_bar(stat = "identity", 
            position = position_dodge(width = dodge_width),
            color = "black",
            width = bar_width) +
-  # 添加数值标签
   geom_text(aes(label = sprintf("%.2f%%", proportion)),
             position = position_dodge(width = dodge_width),
             vjust = -0.5,
             size = 2.5,
             fontface = "bold") +
-  scale_fill_manual(values = colors, name = "核残留reads类型") +
+  scale_fill_manual(values = colors, name = "Residual reads type") +
   scale_y_continuous(
     labels = percent_format(scale = 1, accuracy = 0.1),
     limits = c(0, max(plot_data$proportion) * 1.2),
     expand = c(0, 0)
   ) +
   labs(
-    x = "Fold",
-    y = "Proportion"
+    x = "Fold threshold",
+    y = "Proportion (%)"
   ) +
   theme_minimal() +
   theme(
@@ -844,15 +751,14 @@ p <- ggplot(plot_data,
     plot.margin = margin(10, 10, 10, 10, "mm")
   )
 
-# 保存图形
-ggsave("repeat_proportion_by_fold.png",
+ggsave("residual_reads_proportion.png",
        plot = p,
        width = 12,
        height = 8,
        dpi = 300,
        bg = "white")
-
 ```
+![residual](../pic/residual_reads_proportion.png)
 # col assembly
 ```
 #SRR611086
