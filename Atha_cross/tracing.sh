@@ -46,17 +46,17 @@ for SAMPLE_DIR in "${SAMPLES[@]}"; do
     FREQ_FILE="${SAMPLE_DIR}/chloroplast_heteroplasmy_freq.txt"
     OUT_FILE="${SAMPLE_DIR}/chloroplast_hetero_parent_ratio.txt"
 
-    if [[ ! -s "$FREQ_FILE" ]]; then
-        echo "⚠️ 缺少频率文件，跳过 ${SAMPLE}"
-        continue
-    fi
-
-    echo -e "染色体\t位点\t参考碱基\t变异碱基\t异质性频率\t总reads数\t母本频率\t父本频率\t来源判断" > "$OUT_FILE"
+    # 新增“变异reads数”列标题
+    echo -e "染色体\t位点\t参考碱基\t变异碱基\t异质性频率\t总reads数\t变异reads数\t母本频率\t父本频率\t来源判断" > "$OUT_FILE"
 
     tail -n +1 "$FREQ_FILE" | while read -r chr pos ref alt hetfreq depth; do
         key="${chr}_${pos}_${alt}"
         mom_f=${mom_map["$key"]:-0}
         dad_f=${dad_map["$key"]:-0}
+
+        # 计算变异reads数：总reads数 × 异质性频率，并用printf四舍五入取整数
+        # 先通过bc计算乘积，再用printf "%.0f"四舍五入
+        var_reads=$(echo "$depth * $hetfreq" | bc -l | xargs printf "%.0f")
 
         # 判断来源
         if (( $(echo "$mom_f>0" | bc -l) )) && (( $(echo "$dad_f==0" | bc -l) )); then
@@ -69,10 +69,11 @@ for SAMPLE_DIR in "${SAMPLES[@]}"; do
             origin="自发变异"
         fi
 
-        echo -e "${chr}\t${pos}\t${ref}\t${alt}\t${hetfreq}\t${depth}\t${mom_f}\t${dad_f}\t${origin}" >> "$OUT_FILE"
+        # 输出时增加“变异reads数”列
+        echo -e "${chr}\t${pos}\t${ref}\t${alt}\t${hetfreq}\t${depth}\t${var_reads}\t${mom_f}\t${dad_f}\t${origin}" >> "$OUT_FILE"
     done
 
-    echo "✅ 已完成 ${SAMPLE} -> $(basename "$OUT_FILE")"
+    echo "已完成 ${SAMPLE} -> $(basename "$OUT_FILE")"
 done
 
 echo "===== 全部样本处理完成 ====="

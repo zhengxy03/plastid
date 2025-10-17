@@ -169,6 +169,157 @@ cat opts.tsv |
 bash frequency.sh
 ./multi_sample_compare.sh /share/home/wangq/zxy/plastid/Atha_cross ./chloro_multi_stats
 ```
+* frequency
+```
+PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross"
+CHLORO_NAME="Pt"
+opts_file="$PROJECT_ROOT/opts.tsv"
+
+# 提取样本名（去除前后空格和空行）
+samples=$(awk -F'\t' 'NR>0 && $1!="" {gsub(/^[ \t\r]+|[ \t\r]+$/, ""); print $1}' "$opts_file")
+
+# 循环处理样本
+for sample in $samples; do
+    echo -e "\n===== 处理样本: $sample ====="
+    
+    bam_file="$PROJECT_ROOT/$sample/3_bwa/R.sort.bam"
+    bam_index="$PROJECT_ROOT/$sample/3_bwa/R.sort.bai"
+    gatk_vcf="$PROJECT_ROOT/$sample/3_gatk/R.filtered.vcf"
+    gatk_vcf_gz="$PROJECT_ROOT/$sample/3_gatk/R.filtered.vcf.gz"
+    result_file="$PROJECT_ROOT/$sample/chloroplast_heteroplasmy_freq.txt"
+    chloro_vcf="$PROJECT_ROOT/$sample/3_bwa/chloroplast_variants_from_gatk.vcf.gz"
+    chloro_vcf_tbi="$chloro_vcf.tbi"
+    temp_vcf="$PROJECT_ROOT/$sample/3_bwa/chloroplast_variants_temp.vcf"
+    filtered_temp_vcf="$PROJECT_ROOT/$sample/3_bwa/chloroplast_variants_filtered_temp.vcf"
+    log_file="$PROJECT_ROOT/$sample/chloro_extraction.log"
+
+    if [ ! -f "$bam_file" ] || [ ! -f "$bam_index" ] || [ ! -f "$gatk_vcf" ]; then
+        echo "警告: 缺少必要文件（BAM/索引/GATK VCF），跳过样本 $sample"
+        continue
+    fi
+
+    echo "开始处理样本 $sample" | tee -a "$log_file"
+
+    # 提取叶绿体区域reads
+    samtools view -b -q 10 -o "$PROJECT_ROOT/$sample/3_bwa/chloroplast_temp.bam" "$bam_file" "$CHLORO_NAME"
+
+    samtools sort -o "$PROJECT_ROOT/$sample/3_bwa/chloroplast_Pt_sorted.bam" "$PROJECT_ROOT/$sample/3_bwa/chloroplast_temp.bam"
+    samtools index "$PROJECT_ROOT/$sample/3_bwa/chloroplast_Pt_sorted.bam"
+
+    avg_depth=$(samtools depth "$PROJECT_ROOT/$sample/3_bwa/chloroplast_Pt_sorted.bam" | perl calc_coverage.pl)
+    echo "叶绿体平均覆盖度: ${avg_depth}×" | tee -a "$log_file"
+
+    # 压缩并索引 GATK VCF
+    bgzip -c "$gatk_vcf" > "$gatk_vcf_gz"
+    tabix -p vcf "$gatk_vcf_gz"
+
+    # 提取叶绿体变异
+    echo '提取叶绿体变异' | tee -a "$log_file"
+    bcftools view --apply-filters PASS --targets "$CHLORO_NAME" -Oz "$gatk_vcf_gz" > "$filtered_temp_vcf.gz"
+    tabix -p vcf "$filtered_temp_vcf.gz"
+
+    # 解压供下游 Perl 处理
+    bcftools view "$filtered_temp_vcf.gz" > "$temp_vcf"
+
+    var_count=$(grep -v "^#" "$temp_vcf" | wc -l)
+    echo "提取到的叶绿体变异总数: $var_count" | tee -a "$log_file"
+
+    if [ "$var_count" -eq 0 ]; then
+        echo '未检测到任何变异' | tee -a "$log_file"
+        touch "$result_file"
+        continue
+    fi
+
+    # 压缩最终叶绿体VCF
+    bgzip -c "$temp_vcf" > "$chloro_vcf"
+    tabix -p vcf "$chloro_vcf"
+    echo '生成最终叶绿体VCF完成' | tee -a "$log_file"
+
+    # 计算异质性频率，并过滤 <1%
+    echo '计算异质性频率并过滤小于1%位点...' | tee -a "$log_file"
+    bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t[%AD]\t%QUAL\n' "$chloro_vcf" | \
+        perl calc_frequency.pl > "$result_file"
+
+    result_count=$(wc -l "$result_file" | cut -d' ' -f1)
+    echo "保留异质性变异数 (≥1%): $result_count" | tee -a "$log_file"
+
+    # 清理临时文件
+    rm -f "$PROJECT_ROOT/$sample/3_bwa/chloroplast_temp.bam"
+    rm -f "$gatk_vcf_gz" "$gatk_vcf_gz.tbi"
+    rm -f "$temp_vcf" "$filtered_temp_vcf.gz" "$filtered_temp_vcf.gz.tbi"
+
+    echo "样本 $sample 处理完成" | tee -a "$log_file"
+done
+```
+* 汇总
+```
+PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross"
+OPTS_FILE="$PROJECT_ROOT/opts.tsv"
+OUTPUT_PREFIX="$PROJECT_ROOT/chloro_multi_stats"
+
+CSV_OUTPUT="${OUTPUT_PREFIX}.csv"
+MD_OUTPUT="${OUTPUT_PREFIX}.md"
+
+
+EXCLUDED_SAMPLES=("Sample_c1c2" "Sample_l2c2" "Sample_l2l3" "Sample_l4c1" "Sample_l4l3" "")
+samples=($(perl -ne '
+    chomp;
+    next if /^\s*$/;                # 跳过空行
+    my @f = split(/\t/);
+    $f[0] =~ s/^\s+|\s+$//g;        # 去掉前后空格
+    next if $f[0] =~ /^(Sample_c1c2|Sample_l2c2|Sample_l2l3|Sample_l4c1|Sample_l4l3)$/;  # 排除指定样本
+    print "$f[0]\n";
+' "$OPTS_FILE"))
+
+echo "找到 ${#samples[@]} 个有效样本："
+printf "→ %s\n" "${samples[@]}"
+
+
+echo "样本名,有效变异数,高频(≥10%),中高频(5%-10%),低频(1%-5%),平均异质性频率(%),最高异质性频率(%),平均总reads数(×),最高频率位点(Pt:POS)" > "$CSV_OUTPUT"
+for sample in "${samples[@]}"; do
+    result_file="$PROJECT_ROOT/$sample/chloroplast_heteroplasmy_freq.txt"
+    
+    total_vars=$(wc -l < "$result_file")
+    freq_1_5=$(awk '$5>=0.01 && $5<0.05 {c++} END{print c+0}' "$result_file")
+    freq_5_10=$(awk '$5>=0.05 && $5<0.1 {c++} END{print c+0}' "$result_file")
+    freq_10_plus=$(awk '$5>=0.1 {c++} END{print c+0}' "$result_file")
+    avg_freq=$(awk '{sum+=$5} END{printf "%.2f", sum/NR*100}' "$result_file")
+    max_freq=$(awk '{max=$5>max?$5:max} END{printf "%.2f", max*100}' "$result_file")
+    avg_reads=$(awk '{sum+=$6} END{printf "%.1f", sum/NR}' "$result_file")
+    max_pos=$(awk -v max=0 '$5>max{max=$5; pos=$2} END{print pos}' "$result_file")
+
+    echo "${sample},${total_vars},${freq_10_plus},${freq_5_10},${freq_1_5},${avg_freq},${max_freq},${avg_reads},${max_pos}" >> "$CSV_OUTPUT"
+done
+
+cat > "$MD_OUTPUT" << EOF
+# 叶绿体异质性变异多样本统计报告
+**生成时间**：$(date "+%Y-%m-%d %H:%M:%S")  
+**项目目录**：$PROJECT_ROOT  
+**opts.tsv路径**：$OPTS_FILE  
+**排除样本**：${EXCLUDED_SAMPLES[*]}  
+**有效样本数量**：${#samples[@]}
+
+| 样本名 | 有效变异数 | 高频(≥10%) | 中高频(5%-10%) | 低频(1%-5%) | 平均频率(%) | 最高频率(%) | 平均覆盖(×) | 最高频率位点(Pt:POS) |
+|---------|------------|------------|----------------|-------------|-------------|-------------|--------------|-----------------------|
+EOF
+
+for sample in "${samples[@]}"; do
+    result_file="$PROJECT_ROOT/$sample/chloroplast_heteroplasmy_freq.txt"
+    [ ! -f "$result_file" ] && continue
+
+    total_vars=$(wc -l < "$result_file")
+    freq_1_5=$(awk '$5>=0.01 && $5<0.05 {c++} END{print c+0}' "$result_file")
+    freq_5_10=$(awk '$5>=0.05 && $5<0.1 {c++} END{print c+0}' "$result_file")
+    freq_10_plus=$(awk '$5>=0.1 {c++} END{print c+0}' "$result_file")
+    avg_freq=$(awk '{sum+=$5} END{printf "%.2f", sum/NR*100}' "$result_file")
+    max_freq=$(awk '{max=$5>max?$5:max} END{printf "%.2f", max*100}' "$result_file")
+    avg_reads=$(awk '{sum+=$6} END{printf "%.1f", sum/NR}' "$result_file")
+    max_pos=$(awk -v max=0 '$5>max{max=$5; pos=$2} END{print pos}' "$result_file")
+
+    echo "| ${sample} | ${total_vars} | ${freq_10_plus} | ${freq_5_10} | ${freq_1_5} | ${avg_freq} | ${max_freq} | ${avg_reads} | Pt:${max_pos} |" >> "$MD_OUTPUT"
+done
+```
+
 | 样本名       | 有效变异数 | 高频变异数（≥10%） | 中高频变异数（5%-10%） | 低频变异数（1%-5%） | 平均异质性频率（%） | 最高异质性频率（%） | 平均总reads数（×） | 最高频率位点（Pt:POS） |
 |--------------|------------|--------------------|------------------------|--------------------|---------------------|---------------------|--------------------|------------------------|
 | Sample_14 | 104 | 6 | 21 | 77 | 4.62 | 84.69 | 1513.5 | Pt:28672 |
@@ -214,114 +365,153 @@ bash frequency.sh
 | Sample_c94 | 103 | 9 | 13 | 81 | 4.55 | 85.02 | 3791.4 | Pt:28672 |
 | Sample_c95 | 106 | 9 | 18 | 79 | 4.63 | 83.70 | 3651.7 | Pt:28672 |
 
+## analysis heterogeneity origin
+```
+WORKDIR="/share/home/wangq/zxy/plastid/Atha_cross"
+MOTHER_FREQ="${WORKDIR}/Sample_Col_G/chloroplast_heteroplasmy_freq.txt"
+FATHER_FREQ="${WORKDIR}/Sample_Ler_XL_4/chloroplast_heteroplasmy_freq.txt"
+
+declare -A mom_map
+declare -A dad_map
+
+while read -r chr pos ref alt freq depth; do
+    key="${chr}_${pos}_${alt}"
+    mom_map["$key"]="$freq"
+done < <(tail -n +1 "$MOTHER_FREQ")
+
+while read -r chr pos ref alt freq depth; do
+    key="${chr}_${pos}_${alt}"
+    dad_map["$key"]="$freq"
+done < <(tail -n +1 "$FATHER_FREQ")
+
+# 获取子代样本
+SAMPLES=($(find "$WORKDIR" -maxdepth 1 -type d -name "Sample_*" \
+    | grep -vE "Sample_Col_G|Sample_Ler_XL_4|Sample_l2c2|Sample_l2l3|Sample_l4c1|Sample_l4l3" \
+    | sort))
+
+echo "有效子代样本数: ${#SAMPLES[@]}"
+
+for SAMPLE_DIR in "${SAMPLES[@]}"; do
+    SAMPLE=$(basename "$SAMPLE_DIR")
+    echo "----- 处理 ${SAMPLE} -----"
+
+    FREQ_FILE="${SAMPLE_DIR}/chloroplast_heteroplasmy_freq.txt"
+    OUT_FILE="${SAMPLE_DIR}/chloroplast_hetero_parent_ratio.txt"
+
+    # 新增“变异reads数”列标题
+    echo -e "染色体\t位点\t参考碱基\t变异碱基\t异质性频率\t总reads数\t变异reads数\t母本频率\t父本频率\t来源判断" > "$OUT_FILE"
+
+    tail -n +1 "$FREQ_FILE" | while read -r chr pos ref alt hetfreq depth; do
+        key="${chr}_${pos}_${alt}"
+        mom_f=${mom_map["$key"]:-0}
+        dad_f=${dad_map["$key"]:-0}
+
+        # 计算变异reads数：总reads数 × 异质性频率，并用printf四舍五入取整数
+        # 先通过bc计算乘积，再用printf "%.0f"四舍五入
+        var_reads=$(echo "$depth * $hetfreq" | bc -l | xargs printf "%.0f")
+
+        # 判断来源
+        if (( $(echo "$mom_f>0" | bc -l) )) && (( $(echo "$dad_f==0" | bc -l) )); then
+            origin="母本"
+        elif (( $(echo "$dad_f>0" | bc -l) )) && (( $(echo "$mom_f==0" | bc -l) )); then
+            origin="父本"
+        elif (( $(echo "$mom_f>0" | bc -l) )) && (( $(echo "$dad_f>0" | bc -l) )); then
+            origin="混合（父母均含）"
+        else
+            origin="自发变异"
+        fi
+
+        # 输出时增加“变异reads数”列
+        echo -e "${chr}\t${pos}\t${ref}\t${alt}\t${hetfreq}\t${depth}\t${var_reads}\t${mom_f}\t${dad_f}\t${origin}" >> "$OUT_FILE"
+    done
+
+    echo "已完成 ${SAMPLE} -> $(basename "$OUT_FILE")"
+done
+```
+可视化
 ```R
-#!/usr/bin/env Rscript
-
-# ===============================
-# 🌿 Plastid 异质性来源比例统计
-# ===============================
-
 library(dplyr)
 library(ggplot2)
 library(readr)
 library(scales)
 
-# -------------------------------
-# 基本路径设置
-# -------------------------------
 workdir <- "/share/home/wangq/zxy/plastid/Atha_cross"
 
-# 获取所有子代样本（排除父母与混合样本）
+exclude_samples <- c(
+  "Sample_Col_G", "Sample_Ler_XL_4",
+  "Sample_l2c2", "Sample_l2l3",
+  "Sample_l4c1", "Sample_l4l3", "Sample_c1c2"
+)
+
 all_samples <- list.dirs(workdir, full.names = FALSE, recursive = FALSE)
-exclude_samples <- c("Sample_Col_G", "Sample_Ler_XL_4",
-                     "Sample_l2c2", "Sample_l2l3",
-                     "Sample_l4c1", "Sample_l4l3", "Sample_c1c2")
 samples <- setdiff(all_samples, exclude_samples)
 
-cat("有效子代样本数:", length(samples), "\n")
+cat("Valid offspring samples:", length(samples), "\n")
 
-# -------------------------------
-# 读取并合并所有样本数据
-# -------------------------------
 all_stats <- data.frame()
 
 for (sample in samples) {
   infile <- file.path(workdir, sample, "chloroplast_hetero_parent_ratio.txt")
 
   if (!file.exists(infile)) {
-    cat("⚠️ 文件不存在，跳过:", infile, "\n")
+    cat("⚠️ File missing, skipping:", infile, "\n")
     next
   }
 
   df <- read.delim(infile, header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
 
-  if (nrow(df) == 0) {
-    cat("⚠️ 文件为空，跳过:", infile, "\n")
-    next
-  }
-
   df$Sample <- sample
   all_stats <- bind_rows(all_stats, df)
 }
 
-if (nrow(all_stats) == 0) {
-  stop("❌ 没有有效数据可统计，请检查输入文件！")
-}
+all_stats$来源判断 <- gsub("（.*", "", all_stats$来源判断)  # 去掉括号说明
+all_stats$来源判断 <- trimws(all_stats$来源判断)            # 去掉空格
 
-# -------------------------------
-# 清洗“来源判断”列
-# -------------------------------
-all_stats$来源判断 <- gsub("（.*", "", all_stats$来源判断)  # 去掉括号及后面的文字
-all_stats$来源判断 <- gsub("🧬", "", all_stats$来源判断)    # 去掉emoji
-all_stats$来源判断 <- trimws(all_stats$来源判断)            # 去掉多余空格
+all_stats$Origin <- recode(all_stats$来源判断,
+                           "母本" = "Mother",
+                           "父本" = "Father",
+                           "混合" = "Mixed",
+                           "自发变异" = "Spontaneous")
 
-# -------------------------------
-# 统计每类来源的 reads 总和与比例
-# -------------------------------
 summary_stats <- all_stats %>%
-  group_by(Sample, 来源判断) %>%
-  summarise(total_reads = sum(`总reads数`, na.rm = TRUE), .groups = "drop") %>%
+  group_by(Sample, Origin) %>%
+  summarise(total_var_reads = sum(`变异reads数`, na.rm = TRUE), .groups = "drop") %>%
   group_by(Sample) %>%
-  mutate(sum_reads = sum(total_reads, na.rm = TRUE)) %>%
-  mutate(proportion = ifelse(sum_reads > 0, total_reads / sum_reads, NA)) %>%
+  mutate(sum_var_reads = sum(total_var_reads, na.rm = TRUE)) %>%
+  mutate(proportion = ifelse(sum_var_reads > 0, total_var_reads / sum_var_reads, 0)) %>%
   ungroup()
 
-# -------------------------------
-# 汇总比例表
-# -------------------------------
+summary_stats$proportion <- pmin(summary_stats$proportion, 1)
+summary_stats$proportion[is.na(summary_stats$proportion)] <- 0
+
 report <- summary_stats %>%
   group_by(Sample) %>%
   summarise(
-    母本 = round(sum(proportion[来源判断 == "母本"], na.rm = TRUE), 3),
-    父本 = round(sum(proportion[来源判断 == "父本"], na.rm = TRUE), 3),
-    混合 = round(sum(proportion[来源判断 == "混合"], na.rm = TRUE), 3),
-    自发突变 = round(sum(proportion[来源判断 == "自发变异"], na.rm = TRUE), 3)
+    Mother = round(sum(proportion[Origin == "Mother"], na.rm = TRUE), 3),
+    Father = round(sum(proportion[Origin == "Father"], na.rm = TRUE), 3),
+    Mixed = round(sum(proportion[Origin == "Mixed"], na.rm = TRUE), 3),
+    Spontaneous = round(sum(proportion[Origin == "Spontaneous"], na.rm = TRUE), 3)
   ) %>%
-  mutate(总和 = 母本 + 父本 + 混合 + 自发突变)
+  mutate(Total = Mother + Father + Mixed + Spontaneous)
 
-# -------------------------------
-# 输出表格
-# -------------------------------
 out_table <- file.path(workdir, "chloroplast_hetero_summary.csv")
 write.csv(report, out_table, row.names = FALSE)
-cat("✅ 已保存结果表:", out_table, "\n")
 
-# -------------------------------
-# 绘制堆积柱状图
-# -------------------------------
-summary_stats$来源判断 <- factor(
-  summary_stats$来源判断,
-  levels = c("母本", "父本", "混合", "自发变异")
+summary_stats$Origin <- factor(
+  summary_stats$Origin,
+  levels = c("Mother", "Father", "Mixed", "Spontaneous")
 )
 
-p <- ggplot(summary_stats, aes(x = Sample, y = proportion, fill = 来源判断)) +
-  geom_bar(stat = "identity") +
-  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+fill_colors <- c("Mother" = "black", "Father" = "grey50", "Mixed" = "grey80", "Spontaneous" = "grey30")
+
+p <- ggplot(summary_stats, aes(x = Sample, y = proportion, fill = Origin)) +
+  geom_bar(stat = "identity", color = "black", width = 0.7) +
+  scale_fill_manual(values = fill_colors) +
+  scale_y_continuous(labels = percent_format(), limits = c(0, 1)) +
   labs(
-    title = "叶绿体异质性来源 reads 占比统计",
-    x = "样本",
-    y = "reads 占比",
-    fill = "来源类型"
+    x = "Sample",
+    y = "Variant Read Proportion",
+    fill = "Origin Type"
   ) +
   theme_bw() +
   theme(
@@ -333,380 +523,5 @@ p <- ggplot(summary_stats, aes(x = Sample, y = proportion, fill = 来源判断))
 
 out_plot <- file.path(workdir, "chloroplast_hetero_summary_plot.png")
 ggsave(out_plot, p, width = 12, height = 6, dpi = 300)
-
-
 ```
-![source](./results/chloroplast_hetero_summary_plot.png)
-## calculate the proportion of sources for variant sites
-* find parents' GT difference
-```
-mkdir -p analysis
-cd analysis
-
-#提取亲本
-cp ../Sample_Col_G/3_gatk/R.filtered.vcf Col.vcf
-cp ../Sample_Ler_XL_4/3_gatk/R.filtered.vcf Ler.vcf
-
-bgzip Col.vcf Ler.vcf
-
-bcftools view --apply-filters PASS --max-alleles 2 --targets Pt  --include "AF>0.01" -Oz Col.vcf.gz > Col_Pt.vcf.gz
-bcftools view --apply-filters PASS --max-alleles 2 --targets Pt  --include "AF>0.01" -Oz Ler.vcf.gz > Ler_Pt.vcf.gz
-bcftools index Col_Pt.vcf.gz
-bcftools index Ler_Pt.vcf.gz
-
-#亲本差异位点
-bcftools reheader -s <(echo "Col") Col_Pt.vcf.gz -o Col_Pt.renamed.vcf.gz
-bcftools reheader -s <(echo "Ler") Ler_Pt.vcf.gz -o Ler_Pt.renamed.vcf.gz
-bcftools index Col_Pt.renamed.vcf.gz
-bcftools index Ler_Pt.renamed.vcf.gz
-
-bcftools merge -m all Col_Pt.renamed.vcf.gz Ler_Pt.renamed.vcf.gz -Oz -o Col_Ler.merged.vcf.gz
-bcftools index Col_Ler.merged.vcf.gz
-
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT\t]\n' Col_Ler.merged.vcf.gz > Col_Ler_GT.tsv
-perl -ane 'print if $F[4] ne $F[5]' Col_Ler_GT.tsv > different_sites.tsv
-```
-* extract progeny GT
-```
-cd ..
-mkdir -p vcf
-cat opts.tsv |
-    parallel --colsep '\t' --no-run-if-empty --linebuffer -k -j 4 '
-        if [ ! -d "{1}" ] || [ ! -f "{1}/3_gatk/R.filtered.vcf" ]; then
-            echo "样本 {1} 文件缺失，跳过"
-            continue
-        fi
-
-        echo "处理样本: {1}"
-        
-        # 处理VCF：重命名样本、筛选Pt、过滤PASS、双等位基因、最小AF
-        bcftools reheader --samples <(echo {1}) "{1}/3_gatk/R.filtered.vcf" |
-            bcftools view \
-                --apply-filters PASS \
-                --max-alleles 2 \
-                --targets Pt \
-                -Oz |
-            bcftools view --include "AF>0.01" -Oz -o vcf/{1}.vcf.gz
-
-        # 索引VCF
-        bcftools index -f vcf/{1}.vcf.gz
-    '
-
-bcftools merge --merge all -l <(
-        cat opts.tsv |
-            cut -f 1 |
-            grep -Ev "^Sample_Col_G$|^Sample_Ler_XL_4$" |
-            parallel -k -j 1 ' [ -f vcf/{}.vcf.gz ] && echo "vcf/{}.vcf.gz" '
-    ) \
-    > Atha_cross.vcf
-
-bcftools stats Atha_cross.vcf > Atha_cross.stats
-plot-vcfstats  Atha_cross.stats  -p  plots/Atha_cross.stats
-
-cd analysis
-bgzip ../Atha_cross.vcf
-bcftools index -f ../Atha_cross.vcf.gz
-
-#与父母本比较
-bcftools view -R <(cut -f1,2 different_sites.tsv) ../Atha_cross.vcf.gz -Oz -o F2_informative.vcf.gz
-
-#排除Mt\Nc中的相似性位点
-cp ~/data/plastid/genome/col0/genome.fa .
-faops some genome.fa <(echo 1; echo 2; echo 3; echo 4; echo 5) chr.fa
-faops some genome.fa <(echo Pt) Pt.fa
-faops some genome.fa <(echo Mt) Mt.fa
-
-bwa index chr.fa
-bwa index Mt.fa
-bwa index Pt.fa
-
-bwa mem -t 8 chr.fa Pt.fa | samtools sort -o Pt_vs_nuclear.bam
-bwa mem -t 8 Mt.fa Pt.fa  | samtools sort -o Pt_vs_mt.bam
-
-bedtools bamtobed -i Pt_vs_nuclear.bam > Pt_vs_nuclear.bed
-bedtools bamtobed -i Pt_vs_mt.bam > Pt_vs_mt.bed
-cat Pt_vs_nuclear.bed Pt_vs_mt.bed | bedtools sort -i - | bedtools merge -i - > Pt_homology.bed
-bcftools view -T ^Pt_homology.bed F2_informative.vcf.gz -Oz -o F2_filtered_homology.vcf.gz
-bcftools index -f F2_filtered_homology.vcf.gz
-```
-* data filtering and processing
-```
-#稀有位点过滤 (<10% 样本)
-bcftools query -f '%CHROM\t%POS[\t%GT]\n' F2_filtered_homology.vcf.gz |
-perl -F'\t' -ane '
-    $total_samples = '$(cat opts_no_parents.tsv | wc -l)';
-    $count_alt = 0;
-    $total = 0;
-    for ($i = 2; $i < @F; $i++) {
-        if ($F[$i] ne "./.") {
-            $total++;
-            $count_alt++ if $F[$i] =~ /1/;
-        }
-    }
-    if ($total > 0 && $count_alt / $total >= 0.1) {
-        print join("\t", @F[0,1]), "\n";
-    }
-' > common_sites.txt
-bcftools view -R common_sites.txt F2_filtered_homology.vcf.gz -Oz -o F2_common.vcf.gz
-bcftools index -f F2_common.vcf.gz
-
-
-#成簇位点过滤 (<50bp)
-# 提取并转换位点
-bcftools query -f '%CHROM\t%POS\n' F2_common.vcf.gz | \
-perl -ane 'print "$F[0]\t" . ($F[1] - 1) . "\t$F[1]\n"' > sites.bed
-
-# 排序和聚类
-bedtools sort -i sites.bed | \
-bedtools cluster -d 50 -i - > clustered.bed
-
-#处理聚类结果
-perl -ane '
-    $cluster_count{$F[3]}++;
-    push @{$cluster_info{$F[3]}}, [$F[0], $F[2]];
-    END {
-        foreach $cluster_id (sort { $a <=> $b } keys %cluster_count) {
-            if ($cluster_count{$cluster_id} == 1) {
-                my $site = $cluster_info{$cluster_id}[0];
-                print "$site->[0]\t$site->[1]\n";
-            }
-        }
-    }
-' clustered.bed > nonclustered_chrom_pos.txt
-
-bcftools view -R nonclustered_chrom_pos.txt F2_common.vcf.gz -Oz -o F2_noncluster.vcf.gz
-bcftools index -f F2_noncluster.vcf.gz
-
-
-#排除测序或者 PCR 的偏向性错误（单碱基重复±2bp过滤）
-grep -v "^>" Pt.fa | tr -d '\n' > Pt.seq.txt
-
-perl -ne '
-    while (/(A{5,}|T{5,}|C{5,}|G{5,})/g) {
-        $start = $-[0];
-        $end   = $+[0]; 
-        print "Pt\t$start\t$end\n";
-    }
-' Pt.seq.txt > homopolymer.bed
-samtools faidx Pt.fa
-bedtools slop -i homopolymer.bed -g Pt.fa.fai -b 2 > homopolymer_plus2.bed
-bcftools view -T ^homopolymer_plus2.bed F2_noncluster.vcf.gz -Oz -o F2_highconf.vcf.gz
-bcftools index -f F2_highconf.vcf.gz
-
-# 提取 GT 矩阵（基于高置信度 VCF）
-bcftools query -f '%CHROM\t%POS\t[%GT\t]\n' F2_highconf.vcf.gz > F2_GT_matrix.tsv
-
-grep -v -E '^Sample_Col_G|^Sample_Ler_XL_4|^Sample_c1c2|^Sample_l2c2|^Sample_l2l3|^Sample_l4c1|^Sample_l4l3' ../opts.tsv > opts_no_parents.tsv
-echo -e "CHROM\tPOS\t$(cat opts_no_parents.tsv | cut -f1 | paste -sd '\t' -)" > header.txt
-cat header.txt F2_GT_matrix.tsv > F2_GT_matrix_with_header.tsv
-
-bcftools query -f '%CHROM\t%POS\n' F2_highconf.vcf.gz > highconf_sites.list
-
-perl -F'\s+' -ane '
-    BEGIN {
-        open my $fh, "<", "highconf_sites.list" or die $!;
-        while (<$fh>) {
-            chomp;
-            my @f = split /\s+/;
-            $seen{"$f[0]:$f[1]"} = 1;
-        }
-        close $fh;
-    }
-    $key = "$F[0]:$F[1]";
-    print if $seen{$key};
-' different_sites_with_len.tsv > different_sites_with_len_highconf_perl.tsv
-
-perl -F'\t' -ane '
-    BEGIN {
-        open my $fh, "<", "highconf_sites.list" or die $!;
-        while (<$fh>) {
-            chomp;
-            $seen{$_} = 1;
-        }
-        close $fh;
-    }
-    $key = "$F[0]:$F[1]";
-    print if $seen{$key};
-' F2_sites_ref_alt.tsv > F2_sites_ref_alt_highconf_perl.tsv
-```
-* calculate the proportion
-```
-GENOME_SIZE=154478
-total_samples=$(cat opts_no_parents.tsv | wc -l)
-current=1
-
-> sample_ratio_tmp.tsv
-cat opts_no_parents.tsv | while read -r line; do
-    sample=$(echo "$line" | cut -f1)
-    target_col=$((current + 2))
-
-    echo "[$current/$total_samples] 正在处理样本 $sample，列号 $target_col"
-
-    sample="$sample" target_col="$target_col" GENOME_SIZE="$GENOME_SIZE" \
-    perl -F'\t' -ane '
-        BEGIN {
-            $sample     = $ENV{"sample"};
-            $target_col = $ENV{"target_col"};
-            $genome_size= $ENV{"GENOME_SIZE"};
-
-            # 父母差异位点长度
-            open my $fh1, "<", "different_sites_with_len_highconf.tsv" or die $!;
-            while (<$fh1>) {
-                chomp;
-                my @f = split /\t/;
-                my $key = "$f[0]:$f[1]";
-                $col_gt{$key}  = $f[4];
-                $ler_gt{$key}  = $f[5];
-                $site_len{$key}= $f[6];
-            }
-            close $fh1;
-
-            # F2位点长度
-            open my $fh2, "<", "F2_sites_ref_alt_highconf.tsv" or die $!;
-            while (<$fh2>) {
-                chomp;
-                my @f = split /\t/;
-                my $key = "$f[0]:$f[1]";
-                my $len_ref = length($f[2]);
-                my $len_alt = length($f[3]);
-                $f2_len{$key} = ($len_ref == $len_alt) ? $len_ref : abs($len_ref - $len_alt);
-            }
-            close $fh2;
-
-            $count_col = $count_ler = $count_mut = $total = 0;
-            $len_col = $len_ler = $len_mut = 0;
-        }
-
-        next if $. == 1;   # 跳过header
-
-        my $key = "$F[0]:$F[1]";
-        my $gt  = $F[$target_col - 1];
-        my $col = $col_gt{$key};
-        my $ler = $ler_gt{$key};
-
-        my $this_len = exists $site_len{$key} ? $site_len{$key} : $f2_len{$key};
-        next if $gt eq "./.";
-
-        if ($gt eq $col) {
-            $count_col++; $len_col += $this_len;
-        } elsif ($gt eq $ler) {
-            $count_ler++; $len_ler += $this_len;
-        } else {
-            $count_mut++; $len_mut += $this_len;
-        }
-        $total++;
-
-        END {
-            if ($total > 0 && $genome_size > 0) {
-                my $col_ratio = $count_col / $total * 100;
-                my $ler_ratio = $count_ler / $total * 100;
-                my $mut_ratio = $count_mut / $total * 100;
-
-                my $col_genome = $len_col / $genome_size * 100;
-                my $ler_genome = $len_ler / $genome_size * 100;
-                my $mut_genome = $len_mut / $genome_size * 100;
-
-                printf("%s\t%.4f\t%.6f\t%.4f\t%.6f\t%.4f\t%.6f\t%d\t%d\t%d\t%d\t%d\t%d\n",
-                    $sample, $col_ratio, $col_genome,
-                    $ler_ratio, $ler_genome, $mut_ratio, $mut_genome,
-                    $count_col, $count_ler, $count_mut,
-                    $len_col, $len_ler, $len_mut);
-            } else {
-                printf("%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n", $sample);
-            }
-        }
-    ' F2_GT_matrix_with_header.tsv >> sample_ratio_tmp.tsv
-
-    current=$((current + 1))
-done
-
-echo -e "Sample\tColRatio\tColGenome\tLerRatio\tLerGenome\tMutRatio\tMutGenome\tColCount\tLerCount\tMutCount\tColLength\tLerLength\tMutLength" > sample_ratio_summary.tsv
-cat sample_ratio_tmp.tsv >> sample_ratio_summary.tsv
-
-echo -e "| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | Mut型比例(%) | Mut基因组占比(%) | Col型位点数 | Ler型位点数 | Mut型位点数 | Col长度 | Ler长度 | Mut长度 |" > sample_ratio_summary.md
-echo -e "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |" >> sample_ratio_summary.md
-
-tail -n +2 sample_ratio_summary.tsv | awk -F'\t' '{
-    printf("| %s | %s | %s | %s | %s | %s | %s | %d | %d | %d | %d | %d | %d |\n", \
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
-}' >> sample_ratio_summary.md
-
-```
-| 样本名称 | Col型比例(%) | Col基因组占比(%) | Ler型比例(%) | Ler基因组占比(%) | Mut型比例(%) | Mut基因组占比(%) | Col型位点数 | Ler型位点数 | Mut型位点数 | Col长度 | Ler长度 | Mut长度 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Sample_14 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_18 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_19 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_20 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_21 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_4 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_5 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Sample_7 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_8 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_c41 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c42 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_c45 | 66.6667 | 0.001295 | 0.0000 | 0.000000 | 33.3333 | 0.000647 | 2 | 0 | 1 | 2 | 0 | 1 |
-| Sample_c47 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c48 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_c51 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c52 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_c54 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 5 | 0 | 0 | 5 | 0 | 0 |
-| Sample_c57 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c61 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_c62 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_c63 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_c64 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c65 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_c66 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Sample_c73 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c81 | 75.0000 | 0.001942 | 0.0000 | 0.000000 | 25.0000 | 0.000647 | 3 | 0 | 1 | 3 | 0 | 1 |
-| Sample_c82 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_c83 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_c84 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_c85 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c87 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c88 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 5 | 0 | 0 |
-| Sample_c89 | 100.0000 | 0.001942 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 3 | 0 | 0 | 3 | 0 | 0 |
-| Sample_c90 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Sample_c91 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_c92 | 100.0000 | 0.000647 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 1 | 0 | 0 | 1 | 0 | 0 |
-| Sample_c93 | 100.0000 | 0.002589 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 4 | 0 | 0 |
-| Sample_c94 | 100.0000 | 0.001295 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 2 | 0 | 0 | 2 | 0 | 0 |
-| Sample_c95 | 100.0000 | 0.003237 | 0.0000 | 0.000000 | 0.0000 | 0.000000 | 4 | 0 | 0 | 5 | 0 | 0 |
-```
-library(ggplot2)
-library(tidyr)
-library(dplyr)
-
-df <- read.table("sample_ratio_summary.tsv", header=TRUE, sep="\t", stringsAsFactors=FALSE)
-
-df_long <- df %>%
-  select(Sample, ColGenome, LerGenome) %>%
-  pivot_longer(cols = c(ColGenome, LerGenome), names_to = "来源", values_to = "占比") %>%
-  filter(!is.na(占比))
-
-df_long$来源 <- recode(df_long$来源,
-                        ColGenome = "Col0",
-                        LerGenome = "Ler")
-
-p <- ggplot(df_long, aes(x=来源, y=占比)) +
-  geom_jitter(width=0.2, size=1, color="black") +
-  stat_summary(fun=mean, geom="crossbar", width=0.5, fatten=2, color="red") +
-  labs(x="Source", y="Heterozygosity Ratio (%)") +
-  theme_minimal(base_size = 14) +
-  theme(
-    panel.grid = element_blank(),
-    axis.line = element_line(color="black"),
-    axis.ticks = element_line(color="black"),
-    axis.text = element_text(color="black"),
-    axis.title = element_text(color="black"),
-    plot.background = element_rect(fill="white", color=NA),
-    panel.background = element_rect(fill="white", color=NA)
-  )
-
-ggsave("genome_proportion_dotplot.png", p, width=6, height=4, dpi=300)
-```
-![Heterozygosity Ratio][def]
-
-[def]: ../pic/genome_proportion_dotplot.png
+![origin](./results/chloroplast_hetero_summary_plot.png)
