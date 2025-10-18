@@ -165,13 +165,9 @@ cat opts.tsv |
     '
 ```
 ## calculate heterozygosity frequency
-```
-bash frequency.sh
-./multi_sample_compare.sh /share/home/wangq/zxy/plastid/Atha_cross ./chloro_multi_stats
-```
 * frequency
 ```
-PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross"
+PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross_fold0"
 CHLORO_NAME="Pt"
 opts_file="$PROJECT_ROOT/opts.tsv"
 
@@ -525,3 +521,5 @@ out_plot <- file.path(workdir, "chloroplast_hetero_summary_plot.png")
 ggsave(out_plot, p, width = 12, height = 6, dpi = 300)
 ```
 ![origin](./results/chloroplast_hetero_summary_plot.png)
+
+```
