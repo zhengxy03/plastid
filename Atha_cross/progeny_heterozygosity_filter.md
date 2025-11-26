@@ -553,6 +553,58 @@ awk -F'\t' -v genome_size=$CHLORO_GENOME_SIZE 'NR>1 {
 # 显示前几个子代的结果
 echo -e "\n前10个子代样本结果:"
 head -11 "$inheritance_analysis_file" | column -t
+
+
+PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross_new"
+
+echo "=== 将TXT汇总文件转换为CSV格式 ==="
+
+# 转换遗传分析汇总文件
+if [ -f "$PROJECT_ROOT/chloroplast_inheritance_analysis_genome.txt" ]; then
+    echo "转换 chloroplast_inheritance_analysis_genome.txt -> .csv"
+    # 将制表符替换为逗号，并转换百分比格式
+    sed 's/\t/,/g; s/ %/%/g' "$PROJECT_ROOT/chloroplast_inheritance_analysis_genome.txt" > "$PROJECT_ROOT/chloroplast_inheritance_analysis_genome.csv"
+    echo "完成: chloroplast_inheritance_analysis_genome.csv"
+else
+    echo "警告: 找不到 chloroplast_inheritance_analysis_genome.txt"
+fi
+
+# 转换详细遗传分析文件
+if [ -f "$PROJECT_ROOT/chloroplast_detailed_inheritance_genome.txt" ]; then
+    echo "转换 chloroplast_detailed_inheritance_genome.txt -> .csv"
+    sed 's/\t/,/g' "$PROJECT_ROOT/chloroplast_detailed_inheritance_genome.txt" > "$PROJECT_ROOT/chloroplast_detailed_inheritance_genome.csv"
+    echo "完成: chloroplast_detailed_inheritance_genome.csv"
+else
+    echo "警告: 找不到 chloroplast_detailed_inheritance_genome.txt"
+fi
+
+
+# 转换主汇总文件
+if [ -f "$PROJECT_ROOT/chloroplast_heteroplasmy_summary.txt" ]; then
+    echo "转换 chloroplast_heteroplasmy_summary.txt -> .csv"
+    sed 's/\t/,/g' "$PROJECT_ROOT/chloroplast_heteroplasmy_summary.txt" > "$PROJECT_ROOT/chloroplast_heteroplasmy_summary.csv"
+    echo "完成: chloroplast_heteroplasmy_summary.csv"
+fi
+```
+# compare fold0
+```
+awk -F'\t' '
+NR==FNR && FNR>1 {
+    key = $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5
+    fold0[key] = $0
+    next
+}
+NR>FNR && FNR>1 {
+    key = $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5
+    new[key] = $0
+}
+END {
+    for (key in fold0) {
+        if (!(key in new)) {
+            print fold0[key]
+        }
+    }
+}' Atha_cross_fold0_new/chloroplast_heteroplasmy_summary.txt Atha_cross_new/chloroplast_heteroplasmy_summary.txt > fold0_unique_full.tsv
 ```
 ## plot
 ```
