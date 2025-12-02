@@ -1,214 +1,159 @@
 # preperation
 ```
-mkdir -p mix2/genome
-cp genome/col0/* mix2/genome
-mkdir -p mix2/ena
-cp ena/SRR61696* mix2/ena
-mkdir mix2/SRR616966
-cd mix2/SRR616966
-mkdir 1_genome
-cd 1_genome
-cp ../../genome/genome.fa genome.fa
-cp ../../genome/chr.sizes chr.sizes
-cd ..
-mkdir 2_illumina
-cd 2_illumina
-cp ../../ena/SRR616966_1.fastq.gz R1.fq.gz
-cp ../../ena/SRR616966_2.fastq.gz R2.fq.gz
-cd ../../ena
-(head -1 ../../ena/ena_info.tsv && grep -E "(SRR616966|SRR616965)" ../../ena/ena_info.tsv) > ena_info.tsv
-cd ..
-export FOLD=2
-export GENOME_SIZE=$(
-    cat genome/chr.sizes |
-        tsv-summarize --sum 2
-)
-
-cat ena/ena_info.tsv |
-    tsv-select -H -f name,srr,bases |
-    grep -E "(SRR616966|SRR616965)" |
-    perl -nla -F'\t' -e '
-        BEGIN { our %seen }
-        /^name/ and next;
-        $seen{$F[0]} and next;
-        my $bases = $F[2];
-        $bases =~ s/G$//;
-        my $cutoff = $bases * 1000 * 1000 * 1000 / $ENV{GENOME_SIZE} * $ENV{FOLD};
-        $cutoff = int $cutoff;
-        print join qq(\t), ($F[0], $F[1], $cutoff, $ENV{FOLD});
-        $seen{$F[0]}++;
-    ' \
-    > opts.tsv
-
-
-
-#syn
-cat opts.tsv |
-    parallel --colsep '\t' --no-run-if-empty --linebuffer -k -j 1 '
-        if [ ! -f ena/{2}_1.fastq.gz ]; then
-            exit;
-        fi
-        if [ ! -f ena/{2}_2.fastq.gz ]; then
-            exit;
-        fi
-
-        if [ -f {1}.tar.gz ]; then
-            exit;
-        fi
-
-        mkdir -p {2}_{4}/1_genome
-        pushd {2}_{4}/1_genome
-
-        cp ../../genome/genome.fa genome.fa
-        cp ../../genome/chr.sizes chr.sizes
-        popd > /dev/null
-
-        mkdir -p {2}_{4}/2_illumina
-        pushd {2}_{4}/2_illumina
-
-        ln -fs ../../ena/{2}_1.fastq.gz R1.fq.gz
-        ln -fs ../../ena/{2}_2.fastq.gz R2.fq.gz
-        popd > /dev/null
-    '
-```
-
-## run anchr 
-```
-cat opts.tsv |
-    parallel --colsep '\t' --no-run-if-empty --linebuffer -k -j 1 '
-        if [ -f {1}.tar.gz ]; then
-            exit;
-        fi
-
-        if [ ! -d {2}_{4} ]; then
-            exit;
-        fi
-
-        if [ ! -e {2}_{4}/2_illumina/R1.fq.gz ]; then
-            exit;
-        fi
-        if [ ! -e {2}_{4}/2_illumina/R2.fq.gz ]; then
-            exit;
-        fi
-
-        if bjobs -w | tr -s " " | cut -d " " -f 7 | grep -w "^{2}$"; then
-            echo Job {2}_{4} exists
-            exit;
-        fi
-
-        cd {2}_{4}
-
-        echo {2}_{4}
-
-        rm *.sh
-        anchr template \
-            --genome 1000000 \
-            --parallel 24 \
-            --xmx 80g \
-            \
-            --fastqc \
-            --insertsize \
-            --fastk \
-            \
-            --trim "--dedupe --cutoff {3} --cutk 31" \
-            --qual "25" \
-            --len "60" \
-            --filter "adapter artifact" \
-            \
-            --bwa Q25L60 \
-            --gatk
-
-        bsub -q mpi -n 24 -J "{2}_{4}" "
-            bash 0_script/0_master.sh
-        "
-    '
+mkdir mix3
+cd mix3
+cp -r ~/zxy/plastid/evaluation/SRR611087_2 . #ler
+cp -r ~/zxy/plastid/evaluation/SRR611086_2 .
 ```
 # vcf
 ```
-cd ~/zxy/plastid/mix2/SRR616966_2/3_gatk
+cd ~/zxy/plastid/mix3/SRR611086_2/3_gatk
 bcftools view --apply-filters PASS --max-alleles 2 --types snps --targets Pt --include "AF>0.01" -Oz R.filtered.vcf > Col_Pt.vcf.gz
 gunzip Col_Pt.vcf.gz
 
-cd ~/zxy/plastid/mix2/SRR616965_2/3_gatk
+cd ~/zxy/plastid/mix3/SRR611087_2/3_gatk
 bcftools view --apply-filters PASS --max-alleles 2 --types snps --targets Pt --include "AF>0.01" -Oz R.filtered.vcf > Ler_Pt.vcf.gz
 gunzip Ler_Pt.vcf.gz
 # 提取Col 100×和Ler 1×的变异位点（仅保留位置）
-cd ~/zxy/plastid/mix2/mix_results/Col99x_Ler1x
-awk '!/#/ {print $1 "\t" $2}' ~/zxy/plastid/mix2/SRR616966_2/3_gatk/Col_Pt.vcf > Col_sites.txt
-awk '!/#/ {print $1 "\t" $2}' ~/zxy/plastid/mix2/SRR616965_2/3_gatk/Ler_Pt.vcf > Ler_sites.txt
+mkdir -p mix_results/Col100x_Ler1x
+cd ~/zxy/plastid/mix3/mix_results/Col100x_Ler1x
+
+awk '!/#/ {print $1 "\t" $2}' ~/zxy/plastid/mix3/SRR611086_2/3_gatk/Col_Pt.vcf > Col_sites.txt
+awk '!/#/ {print $1 "\t" $2}' ~/zxy/plastid/mix3/SRR611087_2/3_gatk/Ler_Pt.vcf > Ler_sites.txt
 
 # 筛选Ler特有位点（Ler有而Col没有的位点）
 comm -23 <(sort Ler_sites.txt) <(sort Col_sites.txt) > Ler_unique_sites.txt
 
 echo "Col 100×的变异位点数量：$(wc -l < Col_sites.txt)"  # 0个
-echo "Ler 1×的变异位点数量：$(wc -l < Ler_sites.txt)"    # 41个
+echo "Ler 1×的变异位点数量：$(wc -l < Ler_sites.txt)"    # 39个
 echo "Ler特有的位点数量（Ler有、Col没有）：$(wc -l < Ler_unique_sites.txt)"
 
 ```
 # mix
 ```
-WORK=~/zxy/plastid/mix2/mix_results
+WORK=~/zxy/plastid/mix3/mix_results
 mkdir -p "$WORK"
 cd "$WORK"
 
-
-COL_FOLD=100
-LER_FOLD=1
+# 设置参数
 SEED=123
-WORK=~/zxy/plastid/mix2/mix_results
-GENOME=~/zxy/plastid/mix2/genome/genome.fa
-COL_BAM=~/zxy/plastid/mix2/SRR616966_2/3_bwa/R.sort.bam
-LER_BAM=~/zxy/plastid/mix2/SRR616965_2/3_bwa/R.sort.bam
-COL_VCF=~/zxy/plastid/mix2/SRR616966_2/3_gatk/R.filtered.vcf
-LER_VCF=~/zxy/plastid/mix2/SRR616965_2/3_gatk/R.filtered.vcf
+GENOME=~/zxy/plastid/mix3/genome/genome.fa
+COL_BAM=~/zxy/plastid/mix3/SRR611086_2/3_bwa/R.sort.bam
+LER_BAM=~/zxy/plastid/mix3/SRR611087_2/3_bwa/R.sort.bam
 
-
-RESULT_DIR=$WORK/Col${COL_FOLD}x_Ler${LER_FOLD}x
+RESULT_DIR=$WORK/Col100x_Ler1x
 mkdir -p $RESULT_DIR
 cd $RESULT_DIR
 
-cd ~/zxy/plastid/mix2/mix_results/Col100x_Ler1x
-#col100x
-samtools view -b -F 0x904 -q 1 $COL_BAM Pt > col_pt_raw.bam
-samtools index col_pt_raw.bam
-col_pt_raw_reads=$(samtools view -c col_pt_raw.bam)
-echo "Col 原始 Pt 区域有效 reads：$col_pt_raw_reads"
+# Col - 直接使用原始BAM
+samtools view -b -F 0x904 -q 1 $COL_BAM Pt > col_pt.bam
+samtools index col_pt.bam
+col_reads=$(samtools view -c col_pt.bam)
+echo "Col 原始 Pt 区域有效 reads：$col_reads"
+#4760821
+# 计算目标Ler reads数（Col深度的1%）
+target_ler_reads=$((col_reads / 100))
+echo "目标Ler reads数（Col的1%）：$target_ler_reads"
+#47608
 
-#复制 100 次
-for ((i=1; i<=COL_FOLD; i++)); do
-  samtools addreplacerg -r "@RG\tID:Col_$i\tSM:Col_100x\tPL:ILLUMINA\tLB:Col\tPU:Col_$i" \
-    col_pt_raw.bam -o col_pt_copy_$i.bam
-done
+# Ler - 使用tadpole采样到Col深度的1%
+echo "处理Ler样本..."
+samtools view -b -F 0x904 -q 1 $LER_BAM Pt > ler_pt_full.bam
+ler_full_reads=$(samtools view -c ler_pt_full.bam)
+echo "Ler 原始 Pt 区域有效 reads：$ler_full_reads"
+#7558287
 
-samtools cat col_pt_copy_*.bam -o col_100x_merged.bam
 
-samtools sort col_100x_merged.bam -o col_100x.sm.bam
-samtools index col_100x.sm.bam
 
-col_pt_raw_reads=$(samtools view -c col_pt_raw.bam)
-col_100x_reads=$(samtools view -c col_100x.sm.bam)
-echo "Col 原始 Pt 区域有效 reads：$col_pt_raw_reads"
-echo "Col 100× Pt 区域有效 reads：$col_100x_reads"
-echo "实际放大倍数：$((col_100x_reads / col_pt_raw_reads))"
+if [[ $ler_full_reads -gt 0 ]]; then
+    # 计算目标read pairs数（因为paired-end，所以要除以2）
+    target_pairs=$((target_ler_reads / 2))
+    echo "目标read pairs数：$target_pairs"
+    
+    # ========== 修改：直接导出所有reads为单端，再按总量采样 ==========
+    echo "导出Ler BAM所有reads为单端FASTQ..."
+    # 导出所有reads（不区分R1/R2，避免配对过滤）
+    samtools fastq ler_pt_full.bam > ler_all.fq
+    # 计算目标总reads数（单端，无需除以2）
+    target_total_reads=$target_ler_reads
+    echo "目标总reads数：$target_total_reads"
+    
+    # 检查原始FASTQ的reads数
+    original_total_reads=$(wc -l < ler_all.fq | awk '{print int($1/4)}')
+    echo "原始总reads数：$original_total_reads"
+    
+    # 对单端FASTQ采样（直接取目标数量）
+    echo "使用seqtk对单端reads采样..."
+    seqtk sample -s $SEED ler_all.fq $target_total_reads > ler_sampled_single.fq
+    
+    # 检查采样结果
+    sampled_total_reads=$(wc -l < ler_sampled_single.fq | awk '{print int($1/4)}')
+    echo "采样后总reads数：$sampled_total_reads"
+    
+    # ========== 用单端模式比对（避免配对错误） ==========
+    echo "将采样后的FASTQ转回BAM（单端模式）..."
+    bwa mem -t 8 -p $GENOME ler_sampled_single.fq > ler_sampled.sam
+    
+    # 检查比对结果
+    if [[ ! -s ler_sampled.sam ]]; then
+        echo "错误：比对后SAM文件为空"
+    fi
+    
+    # 转换SAM为BAM并过滤（保持原过滤条件）
+    samtools view -b -F 0x904 -q 1 ler_sampled.sam > ler_sampled.bam
+    samtools sort ler_sampled.bam -o ler_sampled_sorted.bam
+    samtools index ler_sampled_sorted.bam
+    
+    # 清理临时文件
+    rm -f ler_sampled.sam ler_sampled.bam ler_all.fq ler_sampled_single.fq
+    
+else
+    echo "错误：Ler样本没有reads"
+fi
 
-#ler1x
-samtools view -b -F 0x904 -q 1 $LER_BAM Pt -o ler_pt_temp.bam
-samtools addreplacerg -r "@RG\tID:Ler\tSM:Ler_1x\tPL:ILLUMINA\tLB:Ler\tPU:Ler" \
-  -o ler_1x_temp.bam \
-  ler_pt_temp.bam
+ler_sampled_reads=$(samtools view -c ler_sampled_sorted.bam)
+echo "采样后Ler Pt 区域有效 reads：$ler_sampled_reads"
+#47143
+# 添加read group信息
+samtools addreplacerg -r "@RG\tID:Ler\tSM:Ler_1percent\tPL:ILLUMINA\tLB:Ler\tPU:Ler" \
+    ler_sampled_sorted.bam -o ler_final.bam
+samtools index ler_final.bam
 
-samtools sort ler_1x_temp.bam -o ler_1x.sm.bam
-samtools index ler_1x.sm.bam
-ler_1x_reads=$(samtools view -c ler_1x.sm.bam)
-echo "Ler 1× Pt 区域有效 reads：$ler_1x_reads"
+samtools addreplacerg -r "@RG\tID:Col\tSM:Col_original\tPL:ILLUMINA\tLB:Col\tPU:Col" \
+    col_pt.bam -o col_final.bam
+samtools index col_final.bam
 
+# 合并样本
+echo "合并Col和Ler样本..."
 samtools merge -c mix_Col100x_Ler1x_temp.bam \
-  col_100x.sm.bam \
-  ler_1x.sm.bam
+    col_final.bam \
+    ler_final.bam
+    
 samtools sort mix_Col100x_Ler1x_temp.bam -o mix_Col100x_Ler1x.bam
 samtools index mix_Col100x_Ler1x.bam
+
+# 最终统计
 mix_reads=$(samtools view -c mix_Col100x_Ler1x.bam)
-echo "混合样本 Pt 区域有效 reads：$mix_reads"
+col_final_reads=$(samtools view -c col_final.bam)
+ler_final_reads=$(samtools view -c ler_final.bam)
+
+echo "=== 最终统计 ==="
+echo "Col 原始深度 reads：$col_final_reads"
+echo "Ler 1%深度 reads：$ler_final_reads" 
+echo "混合样本总 reads：$mix_reads"
+echo "实际深度比例 Col:Ler = $col_final_reads : $ler_final_reads"
+
+# 计算实际比例
+if [[ $ler_final_reads -gt 0 ]]; then
+    actual_ratio=$(echo "scale=2; $col_final_reads / $ler_final_reads" | bc)
+    echo "实际比例 Col:Ler ≈ $actual_ratio:1"
+    echo "目标比例 Col:Ler = 100:1"
+    
+    # 计算偏差
+    ratio_diff=$(echo "scale=2; ($actual_ratio - 100) / 100 * 100" | bc)
+    echo "与目标比例的偏差：${ratio_diff}%"
+fi
+
 ```
 # gatk
 ```
@@ -242,10 +187,10 @@ gunzip mix_Pt.vcf.gz
 ```
 # detective rate
 ```
-cd ~/zxy/plastid/mix2/mix_results/Col100x_Ler1x
+cd ~/zxy/plastid/mix3/mix_results/Col100x_Ler1x
 mix_vcf="mix_Pt.vcf"
-ler_unique="/share/home/wangq/zxy/plastid/mix2/mix_results/Col100x_Ler1x/Ler_unique_sites.txt"
-col_sites="/share/home/wangq/zxy/plastid/mix2/mix_results/Col100x_Ler1x/Col_sites.txt"
+ler_unique="/share/home/wangq/zxy/plastid/mix3/mix_results/Col100x_Ler1x/Ler_unique_sites.txt"
+col_sites="/share/home/wangq/zxy/plastid/mix3/mix_results/Col100x_Ler1x/Col_sites.txt"
 
 ## 混合样本中检测到的Ler特有位点
 detected_all=$(grep -Ff $ler_unique $mix_vcf | wc -l)
@@ -379,13 +324,13 @@ echo -e "提取到的新检测到位点VCF行数：$(grep -v '^#' newly_detected
 ```
 # 遍历ler0.5x/2x/4x/8x/16x
 ```
-bash mix.sh
+bash run_all_ratios.sh
 ```
 # summary
 ```
-WORK=~/zxy/plastid/mix2/mix_results  # 结果目录根路径
+WORK=~/zxy/plastid/mix3/mix_results  # 结果目录根路径
 SUMMARY_FILE="heteroplasmy_summary.tsv"  # 汇总结果文件
-LER_UNIQUE_SITES=~/zxy/plastid/mix2/mix_results/Col100x_Ler1x/Ler_unique_sites.txt  # Ler特有位点总数文件
+LER_UNIQUE_SITES=~/zxy/plastid/mix3/mix_results/Col100x_Ler1x/Ler_unique_sites.txt  # Ler特有位点总数文件
 
 echo -e "样本名称\tLer倍数\tLer特有位点总数\t真实检测位点\t真实检测率(%)\t有效异质位点\t平均异质性频率(%)" > "$SUMMARY_FILE"
 
