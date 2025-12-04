@@ -307,7 +307,11 @@ for sample in $samples; do
     echo "样本 $sample 处理完成" | tee -a "$log_file"
 done
 ```
-* 汇总
+
+
+
+
+## summary
 ```
 PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross_new"
 
