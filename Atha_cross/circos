@@ -1,0 +1,513 @@
+PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross_new"
+OUTPUT_DIR="$PROJECT_ROOT/circos"
+
+# 拟南芥叶绿体基因组结构（154,478 bp）
+# LSC: 1-84,170 bp
+# IRa: 84,171-92,672 bp (rpl2 - rps19)
+# SSC: 92,673-106,478 bp
+# IRb: 106,479-115,030 bp
+# LSC（续）: 115,031-154,478 bp
+
+cat > "$OUTPUT_DIR/karyotype.txt" << EOF
+chr - Pt chloroplast 1 154478 black
+band Pt LSC LSC 1 84170 green
+band Pt IRa IRa 84171 92672 orange
+band Pt SSC SSC 92673 106478 blue
+band Pt IRb IRb 106479 115030 orange
+band Pt LSC2 LSC2 115031 154478 green
+EOF
+
+PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross_new"
+DETAILED_FILE="$PROJECT_ROOT/chloroplast_detailed_inheritance_genome.txt"
+OUTPUT_DIR="$PROJECT_ROOT/circos"
+
+# 1. 所有变异位点（用于密度图）
+tail -n +2 "$DETAILED_FILE" | awk -F'\t' '
+BEGIN {OFS="\t"}
+{
+    # 格式: progeny chr pos ref alt af source
+    if ($2 == "Pt" && $6 > 0.01) {
+        # 输出所有变异点
+        print "Pt", $3, $3, "variant=1"
+    }
+}' > "$OUTPUT_DIR/all_variants.txt"
+
+# 2. 按来源分类的变异
+# 父本变异（重点展示）
+tail -n +2 "$DETAILED_FILE" | awk -F'\t' '
+BEGIN {OFS="\t"}
+$2 == "Pt" && $7 == "Father" && $6 > 0.01 {
+    print "Pt", $3, $3, $6
+}' > "$OUTPUT_DIR/father_variants.txt"
+
+# 母本变异
+tail -n +2 "$DETAILED_FILE" | awk -F'\t' '
+BEGIN {OFS="\t"}
+$2 == "Pt" && $7 != "Father" && $7 != "Novel" && $6 > 0.01 {
+    print "Pt", $3, $3, $6
+}' > "$OUTPUT_DIR/mother_variants.txt"
+
+# 新发变异
+tail -n +2 "$DETAILED_FILE" | awk -F'\t' '
+BEGIN {OFS="\t"}
+$2 == "Pt" && $7 == "Novel" && $6 > 0.01 {
+    print "Pt", $3, $3, $6
+}' > "$OUTPUT_DIR/novel_variants.txt"
+
+echo "变异文件生成完成"
+
+#生成保守性数据
+PROJECT_ROOT="/share/home/wangq/zxy/plastid/Atha_cross_new"
+OUTPUT_DIR="$PROJECT_ROOT/circos"
+
+# 如果没有真实的保守性数据，可以生成模拟数据或从公共数据库下载
+# 这里使用滑动窗口生成模拟数据
+for ((pos=1; pos<=154478; pos+=100)); do
+    end=$((pos+99))
+    if [ $end -gt 154478 ]; then
+        end=154478
+    fi
+    
+    # 生成随机保守性分数（0-5）
+    score=$(echo "scale=2; $RANDOM/6553.5" | bc)
+    
+    echo -e "Pt\t$pos\t$end\t$score"
+done > "$OUTPUT_DIR/conservation.txt"
+
+——————————————————————————————————————————————————————————
+
+
+# 安装必要的包
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("circlize")
+
+# 加载包
+library(circlize)
+library(dplyr)
+library(ggplot2)
+library(viridis)
+library(circlize)
+library(dplyr)
+library(readr)
+library(scales)
+library(RColorBrewer)
+
+setwd("E:/project/plasid/circos")
+variant_df <- read_tsv("chloroplast_detailed_inheritance_genome.txt", show_col_types = FALSE) %>%
+  filter(AF > 0.01) %>% # 仅保留AF>1%的位点
+  mutate(
+    Pos = as.numeric(Pos),
+    color = case_when(
+      Source == "Father" ~ "#E74C3C",  # 父本红（重点）
+      Source == "Mother" ~ "#3498DB",  # 母本蓝
+      TRUE ~ "#2ECC71"                 # 新发绿
+    ),
+    size = ifelse(Source == "Father", 2, 1) # 父本位点放大
+  ) %>%
+  filter(!is.na(Pos), !is.na(AF)) # 过滤异常值
+
+region_df <- data.frame(
+  chr = "Pt",
+  region = c("LSC", "IRa", "SSC", "IRb"),
+  start = c(1, 84196, 102835, 136180),
+  end = c(84195, 102834, 136179, 154478),
+  length = c(84195, 18639, 33345, 18299),
+  fill = c("#85C1E9", "#82E0AA", "#F9E79F", "#82E0AA")
+)
+
+#查找对应基因
+#awk -v pos=8150 '$1 == "Pt" && $4 <= pos && pos <= $5' Arabidopsis_thaliana.TAIR10.62.gff3
+gene_df <- data.frame(
+  chr = "Pt",
+  start = c(57075, 101012, 109405, 80696), # accD/trnH在LSC1，ycf1在LSC2
+  end = c(58541, 102502, 110436, 81064),
+  gene = c("accD", "23S_rRNA", "ycf1", "rpl14")
+)
+
+library(circlize)
+pdf("circos_plot.pdf", width=8, height=8) 
+# 清空旧图
+circos.clear()
+
+# 设置Circos参数
+circos.par(
+  start.degree = 90,
+  gap.degree = 0,
+  track.margin = c(0.01, 0.005),
+  cell.padding = c(0, 0, 0, 0),
+  track.height = 0.12,
+  "canvas.xlim" = c(-1.2, 1.2),
+  "canvas.ylim" = c(-1.2, 1.2),
+  "clock.wise" = FALSE
+)
+
+# 初始化基因组
+chr_len <- 154478
+circos.initialize("Pt", xlim = c(0, chr_len))
+
+# ------------------ 第1圈 ------------------
+circos.track(
+  ylim = c(0, 1),
+  track.height = 0.15,
+  bg.border = NA,
+  panel.fun = function(x, y) {
+    for(i in 1:nrow(region_df)) {
+      region_color <- ifelse(region_df$region[i] == "LSC", "#A9DFBF",
+                            ifelse(region_df$region[i] == "SSC", "#F9E79F", "#D5F5E3"))
+      circos.rect(region_df$start[i], 0, region_df$end[i], 1,
+                  col = region_color,
+                  border = ifelse(region_df$region[i]=="SSC","#F1C40F",NA),
+                  lwd = 1)
+      
+      # 为所有区域标注名称
+      if(region_df$region[i] %in% c("LSC","SSC","IRa","IRb")){
+        mid_pos <- (region_df$start[i]+region_df$end[i])/2
+        
+        # 设置不同的y位置和颜色
+        if(region_df$region[i] == "LSC") {
+          label_y <- 0.75
+          col_val <- "#27AE60"
+          # 如果是第一个LSC段
+          if(i == 1) {
+            label_y <- 0.7
+          } else if(i == nrow(region_df)) {
+            label_y <- 0.3  # 最后一个LSC段放在下面
+          }
+        } else if(region_df$region[i] == "SSC") {
+          label_y <- 0.25
+          col_val <- "#B7950B"
+        } else if(region_df$region[i] == "IRa") {
+          label_y <- 0.7
+          col_val <- "#2E86C1"
+        } else { # IRb
+          label_y <- 0.3
+          col_val <- "#2E86C1"
+        }
+        
+        circos.text(mid_pos, label_y, region_df$region[i],
+                    facing="clockwise", niceFacing=TRUE,
+                    cex=0.8, col=col_val, font=2)
+      }
+    }
+    
+    # 修改刻度标签为实际范围
+    major_ticks <- seq(0, chr_len, 25000)
+    # 确保包含最后一个刻度
+    if(tail(major_ticks, 1) < chr_len) {
+      major_ticks <- c(major_ticks, chr_len)
+    }
+    
+    # 生成刻度标签 - 只显示到150K，154K位置显示空标签
+    labels <- ifelse(major_ticks < 1000, 
+                     as.character(major_ticks),
+                     paste0(major_ticks/1000, "K"))
+    
+    # 将154K位置的标签设为空字符串
+    labels[major_ticks == chr_len] <- ""
+    
+    circos.axis(h="top", 
+                major.at=major_ticks,
+                labels=labels,
+                labels.cex=0.65, 
+                labels.facing="outside",
+                major.tick.length=0.2, 
+                direction="outside",
+                labels.pos.adjust=TRUE)
+  }
+)
+
+# ------------------ 第2圈 ------------------
+# 保持原来逻辑，只保证文字加粗在刻度上
+circos.track(
+  ylim = c(0, 100),
+  track.height = 0.18,
+  bg.border = "gray70",
+  bg.col = "#FFFFFF",
+  panel.fun = function(x,y){
+    af_values <- c(0.01,0.1,1.0)
+    for(af_val in af_values){
+      display_height <- if(af_val==1) 100 else max(1,min((log10(af_val+0.001)+3)*25,100))
+      circos.lines(c(0,chr_len),c(display_height,display_height),col="#F0F0F0",lwd=0.8)
+      circos.segments(-chr_len*0.003, display_height, 0, display_height, col="gray60",lwd=0.8)
+      circos.text(-chr_len*0.006, display_height, paste0(af_val*100,"%"), cex=0.7, col="gray40",
+                  adj=c(1,0.5), facing="downward", font=2) # 加粗
+    }
+    circos.lines(c(0,chr_len),c(0,0), col="gray80", lwd=1)
+    
+    for(i in 1:nrow(variant_af)){
+      raw_af <- variant_af$AF[i]
+      bar_height <- if(raw_af==1) 100 else max(1,min((log10(raw_af+0.001)+3)*25,100))
+      bar_color <- if(variant_af$Source[i]=="Father") "#E74C3C" else "#27AE60"
+      bar_width <- if(variant_af$Source[i]=="Father") 1.5 else 1.0
+      circos.segments(variant_af$Pos[i],0,variant_af$Pos[i],bar_height,col=bar_color,lwd=bar_width,lend="butt")
+    }
+  }
+)
+
+# ------------------ 第3圈 ------------------
+circos.track(
+  ylim=c(0,1),
+  track.height=0.15,
+  bg.border=NA,
+  bg.col="#EBF5FB",
+  panel.fun=function(x,y){
+    all_positions <- sort(unique(variant_af$Pos))
+    min_spacing <- 1000
+    groups <- list(); current_group <- c(all_positions[1])
+    for(i in 2:length(all_positions)){
+      if(all_positions[i]-tail(current_group,1)<min_spacing){
+        current_group <- c(current_group,all_positions[i])
+      } else {
+        groups[[length(groups)+1]] <- current_group
+        current_group <- c(all_positions[i])
+      }
+    }
+    groups[[length(groups)+1]] <- current_group
+    
+    # 修改这里：用最小值代替中位数
+    label_positions <- sapply(groups, min)  # 改为min()
+    
+    n_labels <- length(label_positions)
+    display_positions <- numeric(n_labels)
+    display_positions[1] <- label_positions[1]
+    for(i in 2:n_labels){
+      if(label_positions[i]-display_positions[i-1]>=min_spacing){
+        display_positions[i] <- label_positions[i]
+      } else {
+        display_positions[i] <- display_positions[i-1]+min_spacing
+      }
+    }
+    shift <- mean(range(label_positions))-mean(range(display_positions))
+    display_positions <- display_positions + shift
+    for(i in seq_len(n_labels)){
+      real_pos <- label_positions[i]
+      display_pos <- display_positions[i]
+      group_vars <- variant_af %>% filter(Pos %in% groups[[i]])
+      is_father <- any(group_vars$Source=="Father")
+      label_text <- as.character(round(real_pos))
+      circos.text(display_pos,0.6,label_text,cex=0.55,
+                  col=ifelse(is_father,"#E74C3C","gray40"),
+                  font=2, facing="reverse.clockwise", niceFacing=TRUE)  # 全加粗
+      circos.segments(real_pos,1.0,display_pos,0.7,
+                      col=ifelse(is_father,adjustcolor("#E74C3C",alpha.f=0.3),"gray90"),
+                      lwd=0.5,lty="dotted")
+      circos.segments(display_pos,0.7,display_pos,0.6,
+                      col=ifelse(is_father,adjustcolor("#E74C3C",alpha.f=0.3),"gray90"),
+                      lwd=0.5,lty="dotted")
+    }
+  }
+)
+# ------------------ 第4圈 ------------------
+circos.track(
+  ylim=c(0,1),
+  track.height=0.2,
+  bg.border=NA,
+  bg.col="#F5F5F5",
+  panel.fun=function(x,y){
+    for(pos in sort(unique(variant_af$Pos))){
+      variants_here <- variant_af %>% filter(Pos==pos)
+      n_var <- nrow(variants_here)
+      x_offsets <- if(n_var==1) 0 else seq(-100,100,length.out=n_var)
+      for(j in seq_len(n_var)){
+        source <- variants_here$Source[j]
+        af <- variants_here$AF[j]
+        y_pos <- 0.1+(0.9-0.1)*af
+        pch_val <- if(source=="Father") 0 else if(source=="Mother") 3 else 2
+        col_val <- if(source=="Father") "#E74C3C" else if(source=="Mother") "#3498DB" else "#2ECC71"
+        circos.points(pos+x_offsets[j],y_pos,pch=pch_val,col=col_val,bg=NA,cex=0.7)
+      }
+    }
+  }
+)
+
+# ------------------ 第5圈 ------------------
+circos.track(
+  ylim=c(0,1),
+  track.height=0.06,
+  bg.border=NA,
+  bg.col="#FFFFFF",
+  panel.fun=function(x,y){
+    for(i in seq_len(nrow(gene_df))){
+      start <- gene_df$start[i]; end <- gene_df$end[i]; gene_name <- gene_df$gene[i]
+      gene_col <- ifelse(gene_name=="accD","#E74C3C",ifelse(gene_name=="ycf1","#8E44AD","#2C3E50"))
+      circos.rect(start,0.2,end,0.8,col=gene_col,border=NA)
+    }
+  }
+)
+
+# ------------------ 第6圈 ------------------
+circos.track(
+  ylim=c(0,1),
+  track.height=0.05,
+  bg.border=NA,
+  bg.col="#FFFFFF",
+  panel.fun=function(x,y){
+    for(i in seq_len(nrow(gene_df))){
+      start <- gene_df$start[i]
+      end <- gene_df$end[i]
+      gene_name <- gene_df$gene[i]
+      mid_pos <- (start + end)/2
+      
+      # 微调重叠基因的显示位置
+      if(gene_name == "ycf1") {
+        # ycf1往左移动（顺时针方向，减去偏移）
+        display_pos <- mid_pos + 700 
+        y_pos <- 0.35 #高度向上
+      } else if(gene_name == "23S_rRNA") {
+        # 23S_rRNA往右移动（逆时针方向，加上偏移）
+        display_pos <- mid_pos - 700   
+        y_pos <- 0.65  # 高度向下
+      } else {
+        # 其他基因不变
+        display_pos <- mid_pos
+        y_pos <- 0.5
+      }
+      
+      col_val <- ifelse(gene_name=="accD","#E74C3C",
+                       ifelse(gene_name=="ycf1","#8E44AD","#2C3E50"))
+      
+      circos.text(display_pos, y_pos, gene_name,
+                  cex=0.55, col=col_val, font=2,
+                  facing="inside", niceFacing=TRUE)
+    }
+  }
+)
+
+legend("topright",
+       legend=c("Father","Mother","Novel"),
+       pch=c(0,3,2),
+       col=c("#E74C3C","#3498DB","#2ECC71"),
+       pt.cex=1, cex=0.8, bty="n")
+
+dev.off()
+
+# ==================== 第3圈：位点标签轨道（无刻度，拉开后整体居中）====================
+
+circos.track(
+  ylim = c(0, 1),
+  track.height = 0.08,
+  bg.border = NA,
+  bg.col = "#EBF5FB",
+  panel.fun = function(x, y) {
+    
+    # 获取所有位点并排序
+    unique_positions <- sort(unique(variant_af$Pos))
+    n_labels <- length(unique_positions)
+    
+    # 为每个标签分配显示位置
+    display_positions <- numeric(n_labels)
+    display_positions[1] <- unique_positions[1]
+    
+    # 最小间距
+    min_spacing <- 1000  # bp
+    
+    # 强制拉开
+    for(i in 2:n_labels) {
+      current_real_pos <- unique_positions[i]
+      prev_display_pos <- display_positions[i - 1]
+      
+      if(current_real_pos - prev_display_pos >= min_spacing) {
+        display_positions[i] <- current_real_pos
+      } else {
+        display_positions[i] <- prev_display_pos + min_spacing
+      }
+    }
+    
+    # ===== 拉开后的整体居中修正 =====
+    center_real <- mean(range(unique_positions))
+    center_display <- mean(range(display_positions))
+    shift <- center_real - center_display
+    display_positions <- display_positions + shift
+    
+    # 绘制所有标签
+    for(i in seq_len(n_labels)) {
+      real_pos <- unique_positions[i]
+      display_pos <- display_positions[i]
+      
+      pos_vars <- variant_af %>% filter(Pos == real_pos)
+      is_father <- any(pos_vars$Source == "Father")
+      
+      # 标签文本
+      label_text <- as.character(real_pos)
+      
+      # 标签（向内）
+      circos.text(
+        x = display_pos,
+        y = 0.6,
+        labels = label_text,
+        cex = 0.55,
+        col = ifelse(is_father, "#E74C3C", "gray40"),
+        font = ifelse(is_father, 2, 1),
+        facing = "reverse.clockwise",
+        niceFacing = TRUE
+      )
+      
+      # 引导线
+      if(abs(display_pos - real_pos) > 50) {
+        circos.segments(
+          x0 = real_pos,
+          x1 = display_pos,
+          y0 = 1.0,
+          y1 = 0.7,
+          col = ifelse(
+            is_father,
+            adjustcolor("#E74C3C", alpha.f = 0.3),
+            "gray90"
+          ),
+          lwd = 0.5,
+          lty = "dotted"
+        )
+        
+        circos.segments(
+          x0 = display_pos,
+          x1 = display_pos,
+          y0 = 0.7,
+          y1 = 0.6,
+          col = ifelse(
+            is_father,
+            adjustcolor("#E74C3C", alpha.f = 0.3),
+            "gray90"
+          ),
+          lwd = 0.5,
+          lty = "dotted"
+        )
+      } else {
+        circos.segments(
+          x0 = real_pos,
+          x1 = real_pos,
+          y0 = 1.0,
+          y1 = 0.7,
+          col = ifelse(
+            is_father,
+            adjustcolor("#E74C3C", alpha.f = 0.3),
+            "gray90"
+          ),
+          lwd = 0.5,
+          lty = "dotted"
+        )
+      }
+    }
+    
+    # 标记原始密集区域
+    if(n_labels > 1) {
+      for(i in 1:(n_labels - 1)) {
+        if(unique_positions[i + 1] - unique_positions[i] < 100) {
+          mid_pos <- mean(c(unique_positions[i], unique_positions[i + 1]))
+          
+          circos.text(
+            x = mid_pos,
+            y = 0.85,
+            labels = "*",
+            cex = 0.6,
+            col = "gray50",
+            facing = "reverse.clockwise"
+          )
+        }
+      }
+    }
+  }
+)
+
+
+png("circos_plot.png", width=2000, height=2000, res=300) 

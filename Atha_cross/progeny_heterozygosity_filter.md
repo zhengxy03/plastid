@@ -164,6 +164,7 @@ cat opts.tsv |
         "
     '
 ```
+
 ## calculate heterozygosity frequency
 * frequency
 ```
@@ -590,6 +591,7 @@ if [ -f "$PROJECT_ROOT/chloroplast_heteroplasmy_summary.txt" ]; then
     echo "完成: chloroplast_heteroplasmy_summary.csv"
 fi
 ```
+
 # compare fold0
 ```
 awk -F'\t' '
@@ -704,3 +706,5 @@ ggsave("chloroplast_father_novel_only.png", p_non_mother, width = 6, height = 4,
 # 显示图片
 print(p_non_mother)
 ```
+# cicos
+[circos](./circos)
