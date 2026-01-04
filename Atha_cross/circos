@@ -94,18 +94,24 @@ library(scales)
 library(RColorBrewer)
 
 setwd("E:/project/plasid/circos")
-variant_df <- read_tsv("chloroplast_detailed_inheritance_genome.txt", show_col_types = FALSE) %>%
+variant_af <- read_tsv("chloroplast_detailed_inheritance_genome.txt", show_col_types = FALSE) %>%
   filter(AF > 0.01) %>% # 仅保留AF>1%的位点
   mutate(
     Pos = as.numeric(Pos),
-    color = case_when(
-      Source == "Father" ~ "#E74C3C",  # 父本红（重点）
-      Source == "Mother" ~ "#3498DB",  # 母本蓝
-      TRUE ~ "#2ECC71"                 # 新发绿
+    # 修改Source列的标签
+    Source = case_when(
+      Source == "Father" ~ "Paternal",  # 父本改为Paternal
+      Source == "Mother" ~ "Maternal",  # 母本改为Maternal
+      TRUE ~ Source                     # 其他保持不变
     ),
-    size = ifelse(Source == "Father", 2, 1) # 父本位点放大
+    color = case_when(
+      Source == "Paternal" ~ "#FF6B6B",  # 浅红色（对应前面的Paternal颜色）
+      Source == "Maternal" ~ "#4DABF7",  # 浅蓝色
+      TRUE ~ "#51CF66"                   # 浅绿色（对应前面的Novel颜色）
+    ),
+    size = ifelse(Source == "Paternal", 2, 1) # 父本位点放大
   ) %>%
-  filter(!is.na(Pos), !is.na(AF)) # 过滤异常值
+  filter(!is.na(Pos), !is.na(AF))
 
 region_df <- data.frame(
   chr = "Pt",
@@ -375,7 +381,7 @@ circos.track(
 )
 
 legend("topright",
-       legend=c("Father","Mother","Novel"),
+       legend=c("Paternal","Maternal","Novel"),
        pch=c(0,3,2),
        col=c("#E74C3C","#3498DB","#2ECC71"),
        pt.cex=1, cex=0.8, bty="n")

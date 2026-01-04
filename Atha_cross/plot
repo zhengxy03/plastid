@@ -1,0 +1,115 @@
+setwd("E:/project/plasid/plot")
+#双横轴柱状分布图
+inheritance_data <- read.csv("chloroplast_inheritance_analysis_genome.csv")
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+simple_data <- inheritance_data[, 1:4]
+
+# 过滤掉0个位点的数据
+father_dist <- simple_data %>%
+  filter(Father_Sites > 0) %>%  # 过滤掉0个位点
+  count(Father_Sites) %>%
+  mutate(
+    Proportion = n / sum(n) * 100,
+    Type = "Father",
+    Count = Father_Sites
+  ) %>%
+  select(Count, n, Proportion, Type)
+
+novel_dist <- simple_data %>%
+  filter(Novel_Sites > 0) %>%  # 过滤掉0个位点
+  count(Novel_Sites) %>%
+  mutate(
+    Proportion = n / sum(n) * 100,
+    Type = "Novel",
+    Count = Novel_Sites
+  ) %>%
+  select(Count, n, Proportion, Type)
+
+dist_data <- bind_rows(father_dist, novel_dist)
+
+# 获取最大值用于x轴设置
+left_max <- max(dist_data$Count[dist_data$Type == "Father"], na.rm = TRUE)
+right_max <- max(dist_data$Count[dist_data$Type == "Novel"], na.rm = TRUE)
+
+# 生成x轴刻度
+x_breaks <- c(seq(-left_max, -1, 1), 0, seq(1, right_max, 1))
+
+p_bidirectional <- ggplot() +
+  # 先画水平线（放在最底层）
+  geom_hline(yintercept = seq(0, 100, by = 10), 
+             color = "lightgray", 
+             size = 0.3,
+             alpha = 0.5) +
+  # 左侧：父本变异（负x轴）
+  geom_col(data = subset(dist_data, Type == "Father"),
+           aes(x = -Count + 0.5, y = Proportion, fill = "Paternal"),
+           width = 1,
+           alpha = 0.8) +
+  # 右侧：新突变（正x轴）
+  geom_col(data = subset(dist_data, Type == "Novel"),
+           aes(x = Count - 0.5, y = Proportion, fill = "Novel"),
+           width = 1,
+           alpha = 0.8) +
+  # 坐标轴设置
+  scale_x_continuous(
+    name = "Number of Variant Sites",
+    breaks = x_breaks,
+    labels = function(x) ifelse(x == 0, "0", as.character(abs(x))),
+    limits = c(-left_max - 0.5, right_max + 0.5)
+  ) +
+  scale_y_continuous(
+    name = "Sample Proportion (%)",
+    breaks = seq(0, 100, by = 10),
+    limits = c(0, max(dist_data$Proportion) * 1.1),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  # 设置填充颜色的比例尺 - 使用浅色
+  scale_fill_manual(
+    name = "Variant Type",
+    values = c("Paternal" = "#FF6B6B",  # 浅红色
+               "Novel" = "#51CF66"),    # 浅绿色
+    breaks = c("Paternal", "Novel"),
+    labels = c("Paternal", "Novel")
+  ) +
+  # 使用theme_minimal并自定义
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    plot.subtitle = element_text(hjust = 0.5, color = "gray40", size = 11),
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    # 移除所有框线
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    axis.line.y = element_blank(),        # 移除y轴线
+    axis.line.x = element_line(size = 0.5, color = "black"),  # 保留x轴线
+    axis.ticks.y = element_blank(),       # 移除y轴刻度
+    axis.ticks.x = element_line(color = "black"),  # 保留x轴刻度
+    # 设置白色背景
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    # 设置图例样式 - 无边框
+    legend.position = c(0.85, 0.85),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.background = element_blank(),
+    legend.key = element_blank(),
+    legend.key.size = unit(1.5, "lines"),
+    legend.key.height = unit(0.8, "cm"),
+    legend.key.width = unit(1.2, "cm"),
+    legend.margin = margin(0, 0, 0, 0)
+  ) +
+  # 添加中央垂直线
+  geom_vline(xintercept = 0, color = "black", size = 0.8)
+
+print(p_bidirectional)
+
+# 保存图片
+ggsave("bidirectional_variant_distribution.png", p_bidirectional, 
+       width = 8, height = 8, dpi = 300)
