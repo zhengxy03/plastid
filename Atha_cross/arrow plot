@@ -1,0 +1,180 @@
+library(tidyverse)
+
+setwd("E:/project/plastid/plot")   # 改成你自己的目录
+df <- read.csv("chloroplast_detailed_inheritance_genome.csv")
+
+df$AF  <- as.numeric(df$AF)
+df$Pos <- as.numeric(df$Pos)
+df$Progeny <- factor(df$Progeny)
+
+# 把 Father 改成 Paternal
+df$Source <- ifelse(df$Source == "Father", "Paternal", df$Source)
+df$Source <- factor(df$Source, levels = c("Paternal", "Novel"))
+
+# ================================
+# 1. 双向坐标映射
+# ================================
+scale_factor <- 0.02   # Novel: 1 → 0.02
+
+df <- df %>%
+  mutate(
+    y_plot = ifelse(
+      Source == "Paternal",
+      AF,                # Paternal: 0 → +0.02
+      -AF * scale_factor # Novel:     0 → -0.02
+    )
+  )
+
+# ================================
+# 2. 12 个样本 → 12 种形状
+# ================================
+shape_map <- setNames(
+  c(21,22,23,24,25,1,2,3,4,5,6,7),
+  levels(df$Progeny)
+)
+
+# ================================
+# 3. 作图
+# ================================
+
+p <- ggplot(df, aes(x = Pos)) +
+
+  # 从 X 轴发射的粗箭头
+  geom_segment(
+    aes(
+      xend = Pos,
+      y = 0,
+      yend = y_plot,
+      color = Source
+    ),
+    arrow = arrow(length = unit(0.15, "cm")),
+    linewidth = 0.9,   # <<<<<< 线更粗
+    alpha = 0.85
+  ) +
+
+  # 箭头终点用 shape 表示不同子代
+  geom_point(
+    aes(
+      y = y_plot,
+      shape = Progeny,
+      fill = Source
+    ),
+    size = 2.8,
+    color = "black",
+    stroke = 0.5
+  ) +
+
+  # 中心 X 轴
+  geom_hline(yintercept = 0, linewidth = 0.7) +
+
+  # X 轴：叶绿体位置（刻度加密）
+  scale_x_continuous(
+    name = "Chloroplast genome position (bp)",
+    breaks = seq(0, 160000, by = 10000),
+    minor_breaks = seq(0, 160000, by = 5000),
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+
+  # 双向 Y 轴（手工）
+  scale_y_continuous(
+    limits = c(-0.02, 0.02),
+    breaks = c(-0.02, -0.01, 0, 0.01, 0.02),
+    labels = c("1.0", "0.5", "0", "0.01", "0.02"),
+    name = "Novel AF (bottom)   |   Paternal AF (top)"
+  ) +
+
+  # 生物学配色
+  scale_color_manual(values = c(Paternal = "#9E2A2B", Novel = "#2E8B57")) +
+  scale_fill_manual(values = c(Paternal = "#9E2A2B", Novel = "#2E8B57")) +
+  scale_shape_manual(values = shape_map) +
+
+  theme_bw() +
+  theme(
+    panel.grid.major.y = element_line(color="grey85"),
+    panel.grid.minor.x = element_line(color="grey90"),
+    panel.grid.minor = element_blank(),
+    axis.line.y = element_line(),
+    legend.position = "right",
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.title.x = element_text(size = 12, face = "bold")
+  )
+
+p
+ggsave(
+  filename = "chloroplast_inheritance_arrows.png",
+  plot = p,
+  width = 15, height = 6, units = "in",
+  dpi = 300,
+  bg = "white"
+)
+
+
+# 父本
+library(tidyverse)
+library(ggplot2)
+library(grid)  # for arrow()
+
+# 文件路径
+file <- "chloroplast_heteroplasmy_summary.csv"
+
+# 读取数据
+df <- read.csv(file, header = FALSE, stringsAsFactors = FALSE)
+colnames(df) <- c("Sample","Chr","Pos","Ref","Alt","AF","DP")
+
+# 只保留父本
+father_sample <- "Sample_Ler_XL_4"
+father_df <- df %>% filter(Sample == father_sample)
+
+# 转数值
+father_df$Pos <- as.numeric(father_df$Pos)
+father_df$AF <- as.numeric(father_df$AF)
+
+# 绘图
+p <- ggplot(father_df, aes(x = Pos)) +
+  # 从 X 轴发射的粗箭头，并生成图例
+  geom_segment(
+    aes(
+      xend = Pos,
+      y = 0,
+      yend = AF,
+      color = "Paternal variants"
+    ),
+    arrow = arrow(length = unit(0.15, "cm"), type = "closed"),
+    linewidth = 0.9,
+    alpha = 0.85
+  ) +
+  # 横轴
+  geom_hline(yintercept = 0, linewidth = 0.7) +
+  # X轴刻度加密
+  scale_x_continuous(
+    name = "Chloroplast genome position (bp)",
+    breaks = seq(0, 160000, by = 10000),
+    minor_breaks = seq(0, 160000, by = 5000),
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+  # Y轴
+  scale_y_continuous(
+    limits = c(0, 1),
+    name = "Allele frequency (AF)"
+  ) +
+  # 手动设置颜色图例
+  scale_color_manual(
+    name = "Variant",
+    values = c("Paternal variants" = "#6A4C93")
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid.major.y = element_line(color="grey85"),
+    panel.grid.minor.x = element_line(color="grey90"),
+    panel.grid.minor = element_blank(),
+    axis.line.y = element_line(),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.title.x = element_text(size = 12, face = "bold"),
+    legend.position = "right"
+  )
+
+# 保存图片
+ggsave("father_AF_genome_position_arrow.png", plot = p, width = 12, height = 4,dpi=300)
+
+# 显示图
+print(p)

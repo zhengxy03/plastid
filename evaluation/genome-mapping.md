@@ -580,6 +580,113 @@ ggsave("all_samples_combined.png", plot = all_plot,
        height = 4 * length(plots_in_order),
        limitsize = FALSE)
 
+#改颜色
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(patchwork)
+library(stringr)
+library(scales)
+
+ordered_samples <- c(
+  'SRR616966::Col-0',
+  'SRR611086::Col-0',
+  'SRR5216995::Col-0',
+  'SRR616965::Ler-0',
+  'SRR611087::Ler-0',
+  'SRR545231::Nipponbare',
+  'SRR063638::NP',
+  'SRR1542423::A17',
+  'SRR1572628::Heinz1706'
+)
+
+sample_mapping <- tibble(
+  SRR = str_extract(ordered_samples, "^SRR\\d+"),
+  Label = ordered_samples
+)
+
+# ==== 改这里的颜色 ====
+colors <- c(
+  "Nc" = "#1F4E79",   # 深蓝
+  "Pt" = "#2E8B57",   # 绿色
+  "Mt" = "#F4A261"    # 橙色
+)
+
+chrom_order <- c("Nc", "Pt", "Mt")
+bar_width <- 0.4
+dodge_width <- 0.35
+
+all_tsv <- list.files(pattern = "_folds\\.tsv$")
+all_sample_plots <- list()
+
+for (srr in sample_mapping$SRR) {
+  file <- all_tsv[grepl(srr, all_tsv)]
+  if (length(file) == 0) {
+    message("WARNING: No file found for ", srr)
+    next
+  }
+  label <- sample_mapping$Label[sample_mapping$SRR == srr]
+  
+  df <- read_tsv(file, show_col_types = FALSE)
+  df$chrom <- factor(df$chrom, levels = chrom_order)
+
+  # Mapped bases
+  p1 <- ggplot(df, aes(x = factor(Fold), y = bases / 1e6, fill = chrom, group = chrom)) +
+    geom_bar(stat = "identity",
+             position = position_dodge(width = dodge_width),
+             color = "black",
+             width = bar_width) +
+    scale_fill_manual(values = colors, breaks = chrom_order, name = "Genome") +
+    labs(
+      title = label,
+      x = "Fold",
+      y = "Mapped bases (Million)"
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_blank(),
+      axis.line = element_line(color = "black"),
+      axis.ticks = element_line(color = "black"),
+      plot.title = element_text(hjust = 0.5, size = 14)
+    )
+
+  # Coverage rate
+  p2 <- ggplot(df, aes(x = factor(Fold), y = covRate, fill = chrom, group = chrom)) +
+    geom_bar(stat = "identity",
+             position = position_dodge(width = dodge_width),
+             color = "black",
+             width = bar_width) +
+    scale_fill_manual(values = colors, breaks = chrom_order, name = "Genome") +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 0.01)) +
+    labs(
+      title = label,
+      x = "Fold",
+      y = "Cover Rate"
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_blank(),
+      axis.line = element_line(color = "black"),
+      axis.ticks = element_line(color = "black"),
+      plot.title = element_text(hjust = 0.5, size = 14)
+    )
+
+  row_plot <- (p1 | p2) + plot_layout(guides = "collect")
+  all_sample_plots[[label]] <- row_plot
+}
+
+plots_in_order <- all_sample_plots[ordered_samples[ordered_samples %in% names(all_sample_plots)]]
+all_plot <- wrap_plots(plots_in_order, ncol = 1)
+
+ggsave(
+  "all_samples_combined.png",
+  plot = all_plot,
+  width = 16,
+  height = 2 * length(plots_in_order),
+  limitsize = FALSE,
+  dpi = 300
+)
+
 ```
 ![evaluation](../pic/all_samples_combined.png)
 
@@ -757,6 +864,101 @@ ggsave("residual_reads_proportion.png",
        height = 8,
        dpi = 300,
        bg = "white")
+
+#柱状堆叠图
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(scales)
+
+result_file <- "~/zxy/plastid/evaluation/summary_results/summary_stats.tsv"
+df <- read_tsv(result_file, show_col_types = FALSE)
+
+plot_data <- df %>%
+  select(
+    fold = fold,
+    `转座元件占比(%)`,
+    `串联重复占比(%)`,
+    `其他核残留占比(%)`
+  ) %>%
+  pivot_longer(
+    cols = -fold,
+    names_to = "repeat_type",
+    values_to = "proportion"
+  ) %>%
+  mutate(
+    fold = factor(fold, levels = unique(fold)),
+    repeat_type = factor(repeat_type,
+                         levels = c("转座元件占比(%)", "串联重复占比(%)", "其他核残留占比(%)")) %>%
+      recode(
+        "转座元件占比(%)" = "Transposon",
+        "串联重复占比(%)" = "Tandem repeat",
+        "其他核残留占比(%)" = "Other nuclear residuals"
+      )
+  )
+
+colors <- c(
+  "Transposon" = "#1F4E79",        # 深蓝（主成分，稳重）
+  "Tandem repeat" = "#2E8B57",     # 绿色（生物学友好）
+  "Other nuclear residuals" = "#F4A261"  # 橙色
+)
+
+
+bar_width <- 0.6
+
+p <- ggplot(plot_data, 
+            aes(x = fold, y = proportion, fill = repeat_type)) +
+
+  # 堆叠柱
+  geom_bar(
+    stat = "identity",
+    position = "stack",
+    color = "black",
+    width = bar_width
+  ) +
+
+  # 堆叠内部百分比标签
+  geom_text(
+    aes(label = sprintf("%.2f%%", proportion)),
+    position = position_stack(vjust = 0.5),
+    size = 2.8,
+    fontface = "bold",
+    color = "black"
+  ) +
+
+  scale_fill_manual(values = colors, name = "Residual reads type") +
+
+  scale_y_continuous(
+    labels = percent_format(scale = 1, accuracy = 0.1),
+    expand = c(0, 0)
+  ) +
+
+  labs(
+    x = "Fold threshold",
+    y = "Proportion (%)"
+  ) +
+
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 12, color = "black"),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11),
+    legend.position = "right",
+    plot.margin = margin(10, 10, 10, 10, "mm")
+  )
+
+ggsave("residual_reads_proportion_stacked.png",
+       plot = p,
+       width = 12,
+       height = 4,
+       dpi = 300,
+       bg = "white")
+
 ```
 ![residual](../pic/residual_reads_proportion.png)
 # col assembly

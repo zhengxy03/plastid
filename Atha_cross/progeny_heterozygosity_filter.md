@@ -687,7 +687,7 @@ df_non_mother$Source <- factor(df_non_mother$Source, levels = c("Father", "Novel
 p_non_mother <- ggplot(df_non_mother, aes(x = Source, y = Percentage, color = Source)) +
   geom_point(size = 1, alpha = 0.6, position = position_jitter(width = 0.1, height = 0)) +
   stat_summary(fun = mean, geom = "crossbar", width = 0.5, fatten = 2, color = "red") +
-  scale_color_manual(values = c("Father" = "#ff7f0e", "Novel" = "#2ca02c")) +
+  scale_color_manual(values = c("Father" = "#FF6B6B", "Novel" = "#51CF66")) +
   labs(x = "Source", y = "Genome Proportion (%)") +  # 英文标签
   theme_minimal(base_size = 14) +
   theme(
@@ -703,8 +703,7 @@ p_non_mother <- ggplot(df_non_mother, aes(x = Source, y = Percentage, color = So
 
 ggsave("chloroplast_father_novel_only.png", p_non_mother, width = 6, height = 4, dpi = 300)
 
-# 显示图片
-print(p_non_mother)
+
 ```
 # cicos
 [circos](./circos)

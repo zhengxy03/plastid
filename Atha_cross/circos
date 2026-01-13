@@ -105,9 +105,9 @@ variant_af <- read_tsv("chloroplast_detailed_inheritance_genome.txt", show_col_t
       TRUE ~ Source                     # 其他保持不变
     ),
     color = case_when(
-      Source == "Paternal" ~ "#FF6B6B",  # 浅红色（对应前面的Paternal颜色）
-      Source == "Maternal" ~ "#4DABF7",  # 浅蓝色
-      TRUE ~ "#51CF66"                   # 浅绿色（对应前面的Novel颜色）
+      Source == "Paternal" ~ "#8B0000",  # 浅红色（对应前面的Paternal颜色）
+      Source == "Maternal" ~ "#000080",  # 浅蓝色
+      TRUE ~ "#006400"                   # 浅绿色（对应前面的Novel颜色）
     ),
     size = ifelse(Source == "Paternal", 2, 1) # 父本位点放大
   ) %>%
@@ -244,8 +244,8 @@ circos.track(
     for(i in 1:nrow(variant_af)){
       raw_af <- variant_af$AF[i]
       bar_height <- if(raw_af==1) 100 else max(1,min((log10(raw_af+0.001)+3)*25,100))
-      bar_color <- if(variant_af$Source[i]=="Father") "#E74C3C" else "#27AE60"
-      bar_width <- if(variant_af$Source[i]=="Father") 1.5 else 1.0
+      bar_color <- if(variant_af$Source[i]=="Paternal") "#8B0000" else "#006400"
+      bar_width <- if(variant_af$Source[i]=="Paternal") 1.5 else 1.0
       circos.segments(variant_af$Pos[i],0,variant_af$Pos[i],bar_height,col=bar_color,lwd=bar_width,lend="butt")
     }
   }
@@ -290,16 +290,16 @@ circos.track(
       real_pos <- label_positions[i]
       display_pos <- display_positions[i]
       group_vars <- variant_af %>% filter(Pos %in% groups[[i]])
-      is_father <- any(group_vars$Source=="Father")
+      is_father <- any(group_vars$Source=="Paternal")
       label_text <- as.character(round(real_pos))
       circos.text(display_pos,0.6,label_text,cex=0.55,
-                  col=ifelse(is_father,"#E74C3C","gray40"),
+                  col=ifelse(is_father,"#8B0000","gray40"),
                   font=2, facing="reverse.clockwise", niceFacing=TRUE)  # 全加粗
       circos.segments(real_pos,1.0,display_pos,0.7,
-                      col=ifelse(is_father,adjustcolor("#E74C3C",alpha.f=0.3),"gray90"),
+                      col=ifelse(is_father,adjustcolor("#8B0000",alpha.f=0.3),"gray90"),
                       lwd=0.5,lty="dotted")
       circos.segments(display_pos,0.7,display_pos,0.6,
-                      col=ifelse(is_father,adjustcolor("#E74C3C",alpha.f=0.3),"gray90"),
+                      col=ifelse(is_father,adjustcolor("#8B0000",alpha.f=0.3),"gray90"),
                       lwd=0.5,lty="dotted")
     }
   }
@@ -319,8 +319,8 @@ circos.track(
         source <- variants_here$Source[j]
         af <- variants_here$AF[j]
         y_pos <- 0.1+(0.9-0.1)*af
-        pch_val <- if(source=="Father") 0 else if(source=="Mother") 3 else 2
-        col_val <- if(source=="Father") "#E74C3C" else if(source=="Mother") "#3498DB" else "#2ECC71"
+        pch_val <- if(source=="Paternal") 0 else if(source=="Maternal") 3 else 2
+        col_val <- if(source=="Paternal") "#8B0000" else if(source=="Maternal") "#000080" else "#006400"
         circos.points(pos+x_offsets[j],y_pos,pch=pch_val,col=col_val,bg=NA,cex=0.7)
       }
     }
@@ -336,7 +336,7 @@ circos.track(
   panel.fun=function(x,y){
     for(i in seq_len(nrow(gene_df))){
       start <- gene_df$start[i]; end <- gene_df$end[i]; gene_name <- gene_df$gene[i]
-      gene_col <- ifelse(gene_name=="accD","#E74C3C",ifelse(gene_name=="ycf1","#8E44AD","#2C3E50"))
+      gene_col <- ifelse(gene_name=="accD","#8B0000",ifelse(gene_name=="ycf1","#8E44AD","#2C3E50"))
       circos.rect(start,0.2,end,0.8,col=gene_col,border=NA)
     }
   }
@@ -370,7 +370,7 @@ circos.track(
         y_pos <- 0.5
       }
       
-      col_val <- ifelse(gene_name=="accD","#E74C3C",
+      col_val <- ifelse(gene_name=="accD","#8B0000",
                        ifelse(gene_name=="ycf1","#8E44AD","#2C3E50"))
       
       circos.text(display_pos, y_pos, gene_name,
@@ -383,7 +383,7 @@ circos.track(
 legend("topright",
        legend=c("Paternal","Maternal","Novel"),
        pch=c(0,3,2),
-       col=c("#E74C3C","#3498DB","#2ECC71"),
+       col=c("#8B0000","#000080","#006400"),
        pt.cex=1, cex=0.8, bty="n")
 
 dev.off()

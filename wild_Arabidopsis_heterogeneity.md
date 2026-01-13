@@ -490,7 +490,8 @@ END{
 | sort -k2,2nr \
 > sample_mean_MAF.tsv
 
-
+cd ../wild_new
+R
 #dot plot
 library(tidyverse)
 
@@ -502,18 +503,19 @@ df <- read.delim(
 )
 colnames(df) <- c("CHROM","POS","REF","ALT","SAMPLE","AF","MAF")
 
-
 # 确保样本顺序是按名称排序（和你文件一致）
 df$SAMPLE <- factor(
   df$SAMPLE,
   levels = sort(unique(df$SAMPLE))
 )
 
+# 绘图
 p <- ggplot(df, aes(x = SAMPLE, y = MAF)) +
   geom_jitter(
     width = 0.25,        # 横向抖动，避免点重叠
     size = 1,
-    alpha = 0.7
+    alpha = 0.7,
+    color = "#1F4E79"    # 修改点颜色
   ) +
   scale_y_continuous(
     limits = c(0, 0.2),
@@ -574,7 +576,7 @@ df_count <- df %>%
 
 
 p <- ggplot(df_count, aes(x = SAMPLE, y = Het_sites)) +
-  geom_col(fill = "black", width = 0.8) +
+  geom_col(fill = "#1F4E79", width = 0.8) +
   geom_text(
     aes(label = Het_sites),
     vjust = -0.3,     # 文字在柱子上方

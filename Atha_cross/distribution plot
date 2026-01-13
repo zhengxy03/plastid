@@ -1,0 +1,285 @@
+setwd("E:/project/plasid/plot")
+#变异位点的双横轴柱状分布图
+inheritance_data <- read.csv("chloroplast_inheritance_analysis_genome.csv")
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+simple_data <- inheritance_data[, 1:4]
+
+# 过滤掉0个位点的数据
+father_dist <- simple_data %>%
+  filter(Father_Sites > 0) %>%  # 过滤掉0个位点
+  count(Father_Sites) %>%
+  mutate(
+    Proportion = n / sum(n) * 100,
+    Type = "Father",
+    Count = Father_Sites
+  ) %>%
+  select(Count, n, Proportion, Type)
+
+novel_dist <- simple_data %>%
+  filter(Novel_Sites > 0) %>%  # 过滤掉0个位点
+  count(Novel_Sites) %>%
+  mutate(
+    Proportion = n / sum(n) * 100,
+    Type = "Novel",
+    Count = Novel_Sites
+  ) %>%
+  select(Count, n, Proportion, Type)
+
+dist_data <- bind_rows(father_dist, novel_dist)
+
+# 获取最大值用于x轴设置
+left_max <- max(dist_data$Count[dist_data$Type == "Father"], na.rm = TRUE)
+right_max <- max(dist_data$Count[dist_data$Type == "Novel"], na.rm = TRUE)
+
+# 生成x轴刻度
+x_breaks <- c(seq(-left_max, -1, 1), 0, seq(1, right_max, 1))
+
+p_bidirectional <- ggplot() +
+  # 先画水平线（放在最底层）
+  geom_hline(yintercept = seq(0, 100, by = 10), 
+             color = "lightgray", 
+             size = 0.3,
+             alpha = 0.5) +
+  # 左侧：父本变异（负x轴）
+  geom_col(data = subset(dist_data, Type == "Father"),
+           aes(x = -Count + 0.5, y = Proportion, fill = "Paternal"),
+           width = 1,
+           alpha = 0.8) +
+  # 右侧：新突变（正x轴）
+  geom_col(data = subset(dist_data, Type == "Novel"),
+           aes(x = Count - 0.5, y = Proportion, fill = "Novel"),
+           width = 1,
+           alpha = 0.8) +
+  # 坐标轴设置
+  scale_x_continuous(
+    name = "Number of Variant Sites",
+    breaks = x_breaks,
+    labels = function(x) ifelse(x == 0, "0", as.character(abs(x))),
+    limits = c(-left_max - 0.5, right_max + 0.5)
+  ) +
+  scale_y_continuous(
+    name = "Sample Proportion (%)",
+    breaks = seq(0, 100, by = 10),
+    limits = c(0, 100),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  # 设置填充颜色的比例尺 - 使用浅色
+  scale_fill_manual(
+    name = "Variant Type",
+    values = c("Paternal" = "#9E2A2B",  # 浅红色
+               "Novel" = "#2E8B57"),    # 浅绿色
+    breaks = c("Paternal", "Novel"),
+    labels = c("Paternal", "Novel")
+  ) +
+  # 使用theme_minimal并自定义
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    plot.subtitle = element_text(hjust = 0.5, color = "gray40", size = 11),
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    # 移除所有框线
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    axis.line.y = element_blank(),        # 移除y轴线
+    axis.line.x = element_line(size = 0.5, color = "black"),  # 保留x轴线
+    axis.ticks.y = element_blank(),       # 移除y轴刻度
+    axis.ticks.x = element_line(color = "black"),  # 保留x轴刻度
+    # 设置白色背景
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    # 设置图例样式 - 无边框
+    legend.position = c(0.85, 0.85),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.background = element_blank(),
+    legend.key = element_blank(),
+    legend.key.size = unit(1.5, "lines"),
+    legend.key.height = unit(0.8, "cm"),
+    legend.key.width = unit(1.2, "cm"),
+    legend.margin = margin(0, 0, 0, 0)
+  ) +
+  # 添加中央垂直线
+  geom_vline(xintercept = 0, color = "black", size = 0.8)
+
+print(p_bidirectional)
+
+# 保存图片
+ggsave("bidirectional_variant_distribution.png", p_bidirectional, 
+       width = 4, height = 6, dpi = 300)
+
+
+
+
+#变异位点的双横轴柱状分布图
+#变异位点的双横轴柱状分布图
+library(ggplot2)
+library(dplyr)
+
+#========================
+# 1. 读入数据
+#========================
+detailed_data <- read.csv("chloroplast_detailed_inheritance_genome.csv")
+
+#========================
+# 2. 数据预处理
+#========================
+# AF 转百分比
+detailed_data <- detailed_data %>%
+  mutate(AF_percent = AF * 100)
+
+# 固定 5 个 AF bin
+af_labels <- c("0–20", "20–40", "40–60", "60–80", "80–100")
+
+detailed_data <- detailed_data %>%
+  mutate(
+    AF_bin = cut(
+      AF_percent,
+      breaks = c(0, 20, 40, 60, 80, 100.0001),
+      labels = af_labels,
+      include.lowest = TRUE,
+      right = FALSE
+    ),
+    # 固定 bin 顺序
+    position = as.integer(factor(AF_bin, levels = af_labels)),
+    Type = ifelse(Source == "Father", "Paternal", "Novel")
+  )
+
+#========================
+# 3. 统计比例（只保留实际出现的 bin）
+#========================
+af_dist_data <- detailed_data %>%
+  count(Type, position) %>%
+  group_by(Type) %>%
+  mutate(Proportion = n / sum(n) * 100) %>%
+  ungroup()
+
+#========================
+# 4. 动态生成 x 轴刻度和标签
+#========================
+# 分别获取父本/新突变的最大position
+max_pos_paternal <- max(af_dist_data$position[af_dist_data$Type == "Paternal"], na.rm = TRUE)
+max_pos_novel    <- max(af_dist_data$position[af_dist_data$Type == "Novel"], na.rm = TRUE)
+
+# 左侧（Paternal）：仅适配父本的最大AF bin
+left_breaks  <- -rev(seq_len(max_pos_paternal))  # 父本最大bin为上限
+left_labels  <- paste0(rev(seq_len(max_pos_paternal)) * 20, "%")
+
+# 右侧（Novel）：仅适配新突变的最大AF bin
+right_breaks <- seq_len(max_pos_novel)            # 新突变最大bin为上限
+right_labels <- paste0(seq_len(max_pos_novel) * 20, "%")
+
+# 合并刻度（中间 0 永远保留）
+x_breaks <- c(left_breaks, 0, right_breaks)
+x_labels <- c(left_labels, "0", right_labels)
+
+# 计算x轴范围
+x_lim_left  <- -max_pos_paternal - 0.5
+x_lim_right <- max_pos_novel + 0.5
+
+#========================
+# 5. 作图（按照第一张图的参数修改）
+#========================
+p_af_bidirectional <- ggplot() +
+  
+  # 先画水平线（放在最底层）- 修改：使用与第一张图相同的参数
+  geom_hline(yintercept = seq(0, 100, by = 10), 
+             color = "lightgray", 
+             size = 0.3,
+             alpha = 0.5) +
+  
+  # 左侧：Paternal
+  geom_col(
+    data = subset(af_dist_data, Type == "Paternal"),
+    aes(x = -(position - 0.5), y = Proportion, fill = "Paternal"),
+    width = 1,
+    alpha = 0.8  # 修改：使用0.8而不是0.85
+  ) +
+  
+  # 右侧：Novel
+  geom_col(
+    data = subset(af_dist_data, Type == "Novel"),
+    aes(x = (position - 0.5), y = Proportion, fill = "Novel"),
+    width = 1,
+    alpha = 0.8  # 修改：使用0.8而不是0.85
+  ) +
+  
+  # 中央分界轴 - 修改：使用与第一张图相同的参数
+  geom_vline(xintercept = 0, color = "black", size = 0.8) +
+  
+  # X 轴
+  scale_x_continuous(
+    name = "Allele Frequency (AF)",
+    breaks = x_breaks,
+    labels = x_labels,
+    limits = c(x_lim_left, x_lim_right)
+  ) +
+  
+  # Y 轴 - 修改：纵坐标刻度显示10% 20%（与第一张图一致）
+  scale_y_continuous(
+    name = "Proportion of Variants (%)",
+    breaks = seq(0, 100, by = 10),  # 10%间隔
+    limits = c(0, 100),  # 动态限制
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  
+  # 填充 & 图例 - 修改：图例顺序
+  scale_fill_manual(
+    name = "Variant Type",
+    values = c("Paternal" = "#9E2A2B",  # 浅红色
+               "Novel" = "#2E8B57"),    # 浅绿色
+    breaks = c("Paternal", "Novel"),    # 指定顺序
+    labels = c("Paternal", "Novel")     # 指定标签顺序
+  ) +
+  
+  # 使用与第一张图相同的theme_minimal设置
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    plot.subtitle = element_text(hjust = 0.5, color = "gray40", size = 11),
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    # 移除所有框线
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    axis.line.y = element_blank(),        # 移除y轴线
+    axis.line.x = element_line(size = 0.5, color = "black"),  # 保留x轴线
+    axis.ticks.y = element_blank(),       # 移除y轴刻度
+    axis.ticks.x = element_line(color = "black"),  # 保留x轴刻度
+    # 设置白色背景
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    # 设置图例样式 - 无边框
+    legend.position = c(0.85, 0.85),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.background = element_blank(),
+    legend.key = element_blank(),
+    legend.key.size = unit(1.5, "lines"),
+    legend.key.height = unit(0.8, "cm"),
+    legend.key.width = unit(1.2, "cm"),
+    legend.margin = margin(0, 0, 0, 0)
+  )
+
+#========================
+# 6. 显示 & 保存
+#========================
+print(p_af_bidirectional)
+
+ggsave(
+  "bidirectional_AF_distribution_independent_axis.png",
+  p_af_bidirectional,
+  width = 4,
+  height = 6,
+  dpi = 300,
+  bg = "white"
+)

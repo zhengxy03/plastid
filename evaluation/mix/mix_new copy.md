@@ -375,88 +375,74 @@ done
 # plot
 ```
 library(tidyverse)
-library(ggplot2)
-library(patchwork)
-library(ggsci)
-npg_pal <- pal_npg()(10)
-npg_extended <- colorRampPalette(npg_pal)(6)
+library(scales)
 
-work_dir <- "~/zxy/plastid/mix2/mix_results"
-summary_file <- file.path(work_dir, "heteroplasmy_summary.tsv")
-summary_df <- read.delim(summary_file, sep = "\t", stringsAsFactors = FALSE)
+# 读取数据
+df <- read_tsv("heteroplasmy_summary.tsv", show_col_types = FALSE)
 
-raw_data_list <- list()  # 存储所有样本的原始数据
-sample_dirs <- list.dirs(work_dir, full.names = TRUE, recursive = FALSE)  # 遍历所有样本目录
+colnames(df) <- c(
+  "Sample",
+  "Ler_fold",
+  "Ler_unique_sites",
+  "Detected_sites",
+  "Detection_rate",
+  "Effective_sites",
+  "Mean_AF"
+)
 
-for (dir in sample_dirs) {
-  # 筛选Col100x_LerXx格式的目录
-  if (grepl("Col100x_Ler", basename(dir))) {
-    # 异质性原始数据文件路径
-    hetero_file <- file.path(dir, "ler_heteroplasmy_final.tsv")
-    if (file.exists(hetero_file)) {
-      # 读取当前样本的原始数据
-      df <- read.delim(hetero_file, sep = "\t", stringsAsFactors = FALSE)
-      # 提取样本名称和Ler倍数（从目录名解析）
-      sample_name <- basename(dir)
-      ler_fold <- as.numeric(gsub("Col100x_Ler|x", "", sample_name))
-      # 添加样本信息列
-      df$样本名称 <- sample_name
-      df$Ler倍数 <- ler_fold
-      # 过滤无效位点（异质性频率=0的位点，可选保留）
-      df <- df %>% filter(异质性频率... != 0)  # 只保留有效异质位点
-      # 存入列表
-      raw_data_list[[sample_name]] <- df
-    }
-  }
-}
-
-raw_combined_df <- bind_rows(raw_data_list)
-ler_order <- sort(unique(raw_combined_df$Ler倍数))  # 提取有序的Ler倍数
-raw_combined_df$Ler倍数 <- factor(raw_combined_df$Ler倍数, levels = ler_order, ordered = TRUE)  # 有序因子
-summary_df$Ler倍数 <- factor(summary_df$Ler倍数, levels = ler_order, ordered = TRUE)
-#boxplot
-plot_box_dot <- ggplot(
-  data = raw_combined_df,
-  aes(x = Ler倍数, y = 异质性频率..., fill = Ler倍数, color = Ler倍数)
-) +
-  geom_boxplot(alpha = 0.8, width = 0.6, outlier.shape = NA) +
-  geom_jitter(position = position_jitter(width = 0.2), size = 1.5, alpha = 0.6) +
-  labs(x = "Ler Fold", y = "Heteroplasmy Frequency (%)") +
-  theme_bw() +
-  theme(
-    text = element_text(size = 12),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    legend.position = "none",
-    panel.grid = element_blank(), 
-    panel.border = element_blank(),
-    axis.line = element_line(size = 0.8)
-  ) +
-  scale_fill_manual(values = npg_extended) +
-  scale_color_manual(values = npg_extended)
-
-ggsave("heteroplasmy_box_jitter.png", plot_box_dot, width = 6, height = 4, dpi = 300)
-
-#lineplot
-plot_line <- ggplot(
-  data = summary_df,
-  aes(x = Ler倍数, y = 有效异质位点, group = 1)
-) +
-  geom_line(linewidth = 2, color = npg_pal[2]) +
-  geom_point(size = 4, shape = 21, fill = "white", color = npg_pal[2]) +
-  geom_text(aes(label = 有效异质位点), vjust = -1, size = 3.5) +
-  labs(x = "Ler Fold", y = "Number of Heteroplasmic Sites") +
-  theme_bw() +
-  theme(
-    text = element_text(size = 12),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    legend.position = "none",
-    panel.grid = element_blank(),      # ❗ 去网格
-    panel.border = element_blank(),    # ❗ 去边框
-    axis.line = element_line(size = 0.8)
+df <- df %>%
+  mutate(
+    Ler_fold = as.numeric(Ler_fold),
+    Detection_rate = as.numeric(Detection_rate),
+    Mean_AF = as.numeric(Mean_AF)
   )
 
+# 绘图
+p <- ggplot(df, aes(x = Ler_fold)) +
+  
+  # 左轴：Detection rate (%)
+  geom_line(aes(y = Detection_rate, color = "Detection rate"), linewidth = 1.2) +
+  geom_point(aes(y = Detection_rate, color = "Detection rate"), size = 3) +
+  
+  # 右轴：Mean_AF (%)，直接按真实值
+  geom_line(aes(y = Mean_AF, color = "Mean heteroplasmy AF"), linewidth = 1.2, linetype = "dashed") +
+  geom_point(aes(y = Mean_AF, color = "Mean heteroplasmy AF"), size = 3, shape = 17) +
+  
+  # 横轴 log2
+  scale_x_continuous(
+    trans = "log2",
+    breaks = c(0.5,1,2,4,8,16,32,64),
+    labels = c("0.5","1","2","4","8","16","32","64")
+  ) +
+  
+  # 左轴 0-100%，右轴 0-最大Mean_AF
+  scale_y_continuous(
+    name = "Detection rate (%)",
+    limits = c(0, 100),
+    sec.axis = sec_axis(~ ., name = "Mean heteroplasmy frequency (%)")
+  ) +
+  
+  scale_color_manual(
+    name = "",
+    values = c("Detection rate" = "#1F4E79", "Mean heteroplasmy AF" = "#2E8B57")
+  ) +
+  
+  labs(x = "Ler mixing ratio (fold)") +
+  
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.title.y.left = element_text(color = "#1F4E79", size = 12, face = "bold"),
+    axis.title.y.right = element_text(color = "#2E8B57", size = 12, face = "bold"),
+    axis.text = element_text(size = 11),
+    axis.title.x = element_text(size = 12, face = "bold"),
+    legend.position = "top",
+    legend.text = element_text(size = 11)
+  )
 
-ggsave("heteroplasmy_count_line.png", plot_line, width = 6, height = 4, dpi = 300)
+# 保存图片
+ggsave("heteroplasmy_summary_plot.png", p, width = 12, height = 6, dpi = 300)
+
+p
+
 ```
